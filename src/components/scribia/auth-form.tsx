@@ -15,13 +15,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// Select removed — using toggle buttons for role selection instead
+// (Radix Select Portal doesn't work inside fixed z-[100] overlay)
 import {
   Feather,
   LogIn,
@@ -300,15 +295,30 @@ export function AuthForm({ initialTab = 'login', onSuccess }: AuthFormProps) {
 
               <div className="space-y-2">
                 <Label>Ruolo</Label>
-                <Select value={role} onValueChange={(v) => { setRole(v as 'STUDENT' | 'TEACHER'); clearErrors() }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="z-[110]">
-                    <SelectItem value="STUDENT">✍️ Studente</SelectItem>
-                    <SelectItem value="TEACHER">📚 Docente</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setRole('STUDENT'); clearErrors() }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all ${
+                      role === 'STUDENT'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-sm'
+                        : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50'
+                    }`}
+                  >
+                    ✍️ Studente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRole('TEACHER'); clearErrors() }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all ${
+                      role === 'TEACHER'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-sm'
+                        : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/50'
+                    }`}
+                  >
+                    📚 Docente
+                  </button>
+                </div>
               </div>
 
               {/* Student: optional teacher code */}
