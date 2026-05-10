@@ -267,3 +267,94 @@ Stage Summary:
 - Student: teacher code input; Teacher: approval warning
 - Full validation, loading states, toast notifications
 - Clean component architecture in page.tsx
+
+---
+Task ID: 3
+Agent: essay-editor-agent
+Task: Create full essay editor component for ScribIA
+
+Work Log:
+- Created src/components/scribia/essay-editor.tsx — Full essay editor component:
+  - Editor Form with title Input, large Textarea (min-h-[250px], 10 rows), character counter
+  - CEFR Level selector (A1–C2) using shadcn Select, default B1
+  - Inline validation: title required, content min 10 characters, with red borders + AlertCircle icons
+  - "Salva bozza" button (outline variant): POST /api/essays → navigate to dashboard
+  - "Invia per correzione" button (emerald→teal gradient): POST /api/essays then POST /api/essays/[id]/correct
+  - Both buttons disabled when title or content is empty, loading spinners during operations
+  - AI Correction Flow: two-step (create essay → correct with level), full loading overlay with Brain icon + pulsing animation
+  - Error handling: correction failure → toast.error, still save as draft, navigate to dashboard
+  - Existing essays list below editor with status badges (Bozza/gray, Inviato/amber, Corretto/emerald)
+  - Click essay → setCurrentEssay + setCurrentView('essay-detail')
+  - Framer Motion fade-in for form, stagger animation for essay list items, pulsing loading overlay
+  - Card with bg-card/80 backdrop-blur-sm, responsive flex-col sm:flex-row button layout
+  - 'use client', exports EssayEditor, uses useAppStore + apiFetch
+- Updated src/components/scribia/app-shell.tsx:
+  - Imported EssayEditor from './essay-editor'
+  - Replaced placeholder EssayEditorView with <EssayEditor /> component
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Complete essay editor with create, save draft, and AI correction flows
+- Full validation, loading states, error handling with toast notifications
+- Existing essays list with status badges and click-to-detail navigation
+- Framer Motion animations throughout
+- Integrated into AppShell replacing placeholder
+
+---
+Task ID: 5
+Agent: profile-section-agent
+Task: Create comprehensive student profile section component
+
+Work Log:
+- Created src/components/scribia/profile-section.tsx — Full profile section with 4 sub-sections:
+  - StudentInfoCard: avatar with emerald→teal gradient initial, name, email, role badge (color-coded), member since date (localized Italian), teacher code if available
+  - ProgressStatistics: total essays, corrected (with percentage), submitted, drafts — each with Progress bar component; average score and latest score in bordered stat boxes with color-coded values
+  - ImprovementSuggestions (key section): aggregates data from all corrected essays' aiCorrection:
+    * Connettori raccomandati: counts connector frequency across suggestions.connectors, displays as teal badges with ×count
+    * Sinonimi per parole ripetute: aggregates suggestions.synonyms, merges alternatives for same word, shows repeated words with alternatives as emerald badges
+    * Aree deboli identificate: groups errors by type, calculates frequency/percentage, shows with color-coded Progress bars (red=most frequent, amber=2nd, teal=rest); Italian labels for common error types
+  - EssayHistory (Storico Saggi): sorted by creation date (newest first), each with status badge + score badge, mini bar chart for score trend (≥2 corrected essays), trend icon (TrendingUp/Down/Minus), click → setCurrentEssay + setCurrentView('essay-detail')
+- Framer Motion animations: containerVariants with staggerChildren, itemVariants with fade-in + slide-up
+- Empty states: "Non hai ancora saggi corretti. Scrivi il tuo primo saggio!" for no corrected essays, "Continua a scrivere per ricevere suggerimenti personalizzati!" for no suggestions
+- Responsive layout: 1 col mobile, 2 col desktop grid for info+stats and suggestions
+- Color scheme: emerald/teal primary with amber accents, NO indigo/blue
+- Updated src/components/scribia/app-shell.tsx:
+  - Imported ProfileSection from './profile-section'
+  - Replaced old ProfileView inline implementation with <ProfileSection />
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Comprehensive profile section with student info, progress stats, AI-powered improvement suggestions, and essay history with score trend
+- Data aggregation from corrected essays for personalized learning insights
+- Full Italian language UI with proper empty states
+- Framer Motion stagger animations
+- Integrated into AppShell replacing old simple profile view
+
+---
+Task ID: 4
+Agent: essay-detail-agent
+Task: Create comprehensive essay detail view with AI correction results
+
+Work Log:
+- Created src/components/scribia/essay-detail.tsx — Full essay detail component (~680 lines):
+  - Types: CorrectionError, CorrectionSuggestions, AICorrection interfaces matching the AI correction data structure
+  - ERROR_TYPE_CONFIG: color-coded config for 6 error types (grammar, spelling, syntax, punctuation, vocabulary, style) with Italian labels, color classes, underline CSS, badge classes, CEFR level references
+  - AnimatedScore: SVG circular progress bar with Framer Motion animation (1.5s easeOut), color: emerald (≥70), amber (40-69), red (<40), score number in center with scale animation
+  - AnnotatedText: Original text with error highlights using position-based segmentation, color-coded underlines by type, falls back to plain text if no valid position data, title tooltip shows explanation
+  - ErrorCard with Collapsible: type badge, original→correction, explanation, "Clicca per i dettagli completi" trigger, expanded: Regola Grammaticale, Esempi (errato/corretto with icons), Livello QCER badge
+  - SelfAssessmentDialog: 3-step (Rivedere errori → Auto-punteggio → Riflessione), error summary with checkbox, AnimatedScore + Slider for self-score, Textarea for notes, POST /api/essays/[id]/self-assess, read-only if already assessed, DialogDescription for accessibility
+  - Main EssayDetail: back button, redirect if no essay, "non corretto" message with original text, score card with AnimatedScore, Tabs (Originale/Corretto/Errori/Suggerimenti), annotated text with legend, corrected text, error cards + grammar notes, vocabulary/style/study topics sections, teacher notes
+  - FadeIn animation wrapper for staggered section animations
+- Updated src/components/scribia/app-shell.tsx: imported EssayDetail, replaced inline EssayDetailView with <EssayDetail />
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Comprehensive essay detail view with full AI correction results display
+- Animated circular score, error annotations with collapsible details
+- Self-assessment 3-step dialog with read-only mode
+- Tabbed navigation: Original/Corrected/Errors/Suggestions
+- Italian language UI, emerald/teal/amber color scheme, Framer Motion animations
+- Integrated into AppShell replacing old simple essay detail view

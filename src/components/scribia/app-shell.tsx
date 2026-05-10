@@ -1,21 +1,20 @@
 'use client'
 
-import { useState, useEffect, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore, type AppView } from '@/store/app-store'
-import { apiFetchPublic } from './api-fetch'
+import { EssayEditor } from './essay-editor'
+import { EssayDetail } from './essay-detail'
+import { StudentDashboard } from './student-dashboard'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet'
 import {
   Tooltip,
@@ -43,15 +42,11 @@ import {
   Moon,
   Feather,
   ChevronRight,
-  PenLine,
-  Clock,
   CheckCircle2,
-  AlertCircle,
   BarChart3,
-  Star,
-  Plus,
+  AlertCircle,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { ProfileSection } from './profile-section'
 
 /* ─── Hydration hook ─────────────────────────────────────────── */
 
@@ -336,147 +331,7 @@ function Header() {
   )
 }
 
-/* ─── Dashboard: Student ─────────────────────────────────────── */
-
-function StudentDashboard() {
-  const { stats, essays, setCurrentView, setCurrentEssay } = useAppStore()
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Benvenuto!</h2>
-          <p className="text-muted-foreground">Ecco un riepilogo dei tuoi temi.</p>
-        </div>
-        <Button
-          onClick={() => setCurrentView('essay-editor')}
-          className="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white"
-        >
-          <Plus className="size-4 mr-1" /> Nuovo Tema
-        </Button>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                <FileText className="size-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalEssays || 0}</p>
-                <p className="text-xs text-muted-foreground">Temi Totali</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10">
-                <CheckCircle2 className="size-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.correctedEssays || 0}</p>
-                <p className="text-xs text-muted-foreground">Corretti</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10">
-                <BarChart3 className="size-5 text-teal-600 dark:text-teal-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.averageScore || 0}</p>
-                <p className="text-xs text-muted-foreground">Punteggio Medio</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-orange-500/10">
-                <Clock className="size-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.draftEssays || 0}</p>
-                <p className="text-xs text-muted-foreground">Bozze</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent essays */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Temi Recenti</CardTitle>
-          <CardDescription>I tuoi ultimi temi scritti</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {essays.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="size-12 mx-auto mb-3 opacity-30" />
-              <p>Nessun tema ancora. Inizia a scrivere!</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
-              {essays.slice(0, 10).map((essay) => (
-                <button
-                  key={essay.id}
-                  onClick={() => {
-                    setCurrentEssay(essay)
-                    setCurrentView('essay-detail')
-                  }}
-                  className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent/50 transition-colors text-left"
-                >
-                  <div
-                    className={`flex size-8 items-center justify-center rounded-md ${
-                      essay.status === 'CORRECTED'
-                        ? 'bg-emerald-500/10'
-                        : essay.status === 'SUBMITTED'
-                        ? 'bg-amber-500/10'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {essay.status === 'CORRECTED' ? (
-                      <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <Clock className="size-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{essay.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(essay.createdAt).toLocaleDateString('it-IT')}
-                    </p>
-                  </div>
-                  {essay.aiScore !== null && (
-                    <Badge
-                      variant={essay.aiScore >= 70 ? 'default' : 'secondary'}
-                      className={`text-xs ${
-                        essay.aiScore >= 70
-                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                      }`}
-                    >
-                      {essay.aiScore}/100
-                    </Badge>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+/* ─── Dashboard: Student (imported from student-dashboard.tsx) ── */
 
 /* ─── Dashboard: Teacher ─────────────────────────────────────── */
 
@@ -656,125 +511,15 @@ function AdminDashboard() {
 /* ─── Placeholder Views ──────────────────────────────────────── */
 
 function EssayEditorView() {
-  const { currentEssay } = useAppStore()
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">
-        {currentEssay ? 'Dettaglio Tema' : 'I Miei Temi'}
-      </h2>
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-12 text-muted-foreground">
-            <PenLine className="size-12 mx-auto mb-3 opacity-30" />
-            <p>Seleziona un tema per visualizzarlo.</p>
-            <p className="text-xs mt-1">Le funzionalità complete saranno disponibili presto.</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <EssayEditor />
 }
 
 function EssayDetailView() {
-  const { currentEssay, setCurrentView } = useAppStore()
-  if (!currentEssay) {
-    setCurrentView('essay-editor')
-    return null
-  }
-  const correction = currentEssay.aiCorrection as Record<string, unknown> | null
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => setCurrentView('essay-editor')}>
-          <ChevronRight className="size-4 rotate-180 mr-1" /> Indietro
-        </Button>
-      </div>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{currentEssay.title}</CardTitle>
-            <Badge
-              className={
-                currentEssay.status === 'CORRECTED'
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-              }
-            >
-              {currentEssay.status}
-            </Badge>
-          </div>
-          <CardDescription>
-            {new Date(currentEssay.createdAt).toLocaleDateString('it-IT')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Testo Originale</h4>
-            <div className="p-4 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap">
-              {currentEssay.content}
-            </div>
-          </div>
-          {correction && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <h4 className="text-sm font-semibold">Correzione AI</h4>
-                  {currentEssay.aiScore !== null && (
-                    <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                      <Star className="size-3 mr-1" /> {currentEssay.aiScore}/100
-                    </Badge>
-                  )}
-                </div>
-                <div className="p-4 rounded-lg bg-emerald-500/5 text-sm whitespace-pre-wrap">
-                  {(correction as Record<string, unknown>).correctedText as string || 'N/A'}
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <EssayDetail />
 }
 
 function ProfileView() {
-  const { user } = useAppStore()
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Profilo</h2>
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-500 text-white text-2xl font-bold">
-              {user?.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <div>
-              <p className="text-xl font-semibold">{user?.name}</p>
-              <p className="text-muted-foreground">{user?.email}</p>
-              <Badge variant="outline" className="mt-1">
-                {user?.role === 'STUDENT' ? '✍️ Studente' : '📚 Insegnante'}
-              </Badge>
-            </div>
-          </div>
-          <Separator />
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Membro dal</p>
-              <p className="font-medium">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('it-IT') : 'N/A'}</p>
-            </div>
-            {user?.teacherCode && (
-              <div>
-                <p className="text-muted-foreground">Codice Insegnante</p>
-                <p className="font-medium font-mono">{user.teacherCode}</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <ProfileSection />
 }
 
 function NotesView() {
