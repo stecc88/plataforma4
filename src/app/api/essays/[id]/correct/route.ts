@@ -115,6 +115,7 @@ export async function POST(
     })
   } catch (error) {
     console.error('[Correct] Error:', error instanceof Error ? error.message : error)
+    console.error('[Correct] Error type:', error?.constructor?.name)
     console.error('[Correct] Stack:', error instanceof Error ? error.stack : 'N/A')
 
     // Provide specific error messages
@@ -135,10 +136,12 @@ export async function POST(
     // Return detailed error for debugging
     const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto'
     const errorStack = error instanceof Error ? error.stack : ''
+    const errorType = error?.constructor?.name || 'Unknown'
 
     return NextResponse.json(
       {
         error: `Errore nella correzione AI: ${errorMsg}`,
+        errorType,
         stack: errorStack || undefined,
       },
       { status: 500 }
