@@ -33,3 +33,50 @@ Stage Summary:
 - All dependencies installed: Next.js 16, TypeScript 5, Tailwind CSS 4, shadcn/ui (NY), Framer Motion, Supabase, bcryptjs, jose, Zustand, z-ai-web-dev-sdk
 - Landing page live at / with Italian-themed design, light/dark mode, animations
 - No Prisma — using Supabase directly with service_role key
+
+---
+Task ID: 2
+Agent: main
+Task: Create core libraries — supabase, db wrapper, auth, ai
+
+Work Log:
+- Updated src/lib/supabase.ts — throws if env vars missing in production, placeholder values for dev
+- Rewrote src/lib/db.ts — complete Prisma-like wrapper over Supabase:
+  - Automatic camelCase → snake_case (outgoing) and snake_case → camelCase (incoming)
+  - Generic createRepository<T>() factory with CRUD operations
+  - db.user, db.essay, db.enrollment, db.teacherNote, db.classPreparation
+  - Each has: findMany, findUnique, create, update, delete, count
+  - Full TypeScript types: User, Essay, Enrollment, TeacherNote, ClassPreparation
+  - UserRole, UserStatus, EssayStatus type unions
+- Rewrote src/lib/auth.ts — complete JWT authentication:
+  - JWT_SECRET throws in production if missing
+  - AuthPayload: {userId, email, role, status}
+  - ROLES: ADMIN, TEACHER, STUDENT
+  - STATUSES: ACTIVE, PENDING, SUSPENDED
+  - signToken(payload), verifyToken(token), getAuthFromRequest(request)
+  - hashPassword(), verifyPassword() using bcryptjs
+- Created src/lib/ai.ts — Gemini integration via z-ai-web-dev-sdk:
+  - Singleton ZAI instance with lazy initialization
+  - correctEssay(text, level) — returns EssayCorrection with:
+    * correctedText, score (0-100), errors[], grammarNotes[], vocabularyNotes[], styleNotes[]
+    * suggestions: {connectors[], synonyms[]}
+    * studyTopics[]
+  - generateLessonPreparation(weaknesses, level) — returns LessonPreparation with:
+    * title, level, objectives, activities, exercises, homework, notes
+  - Robust error handling: try/catch, JSON markdown extraction, fallback responses
+- Created supabase/schema.sql — complete SQL for all 5 tables with:
+  - UUID PKs with gen_random_uuid()
+  - CHECK constraints for role, status enums
+  - Foreign keys with ON DELETE CASCADE
+  - Indexes for performance
+  - RLS enabled with permissive policies for service_role and anon
+  - GRANT ALL for service_role and anon
+- Lint passes with zero errors
+- Committed: feat: add core libraries — supabase, db wrapper, auth, ai
+
+Stage Summary:
+- All 4 core libraries created/updated and fully typed
+- Prisma completely replaced with Supabase wrapper
+- AI integration uses z-ai-web-dev-sdk (not @google/generative-ai)
+- SQL schema ready for Supabase SQL Editor
+- 5 tables: users, essays, enrollments, teacher_notes, class_preparations
