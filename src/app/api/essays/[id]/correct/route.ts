@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
-import { correctEssay, type ItalianLevel, AITimeoutError } from '@/lib/ai'
+import { correctWriting, AITimeoutError } from '@/lib/ai'
+import type { ItalianLevel, CertificationType, TextType } from '@/lib/ai-correction.types'
 
 /* ─── POST /api/essays/[id]/correct — AI Correction ──────────── */
+
+const VALID_LEVELS: ItalianLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const VALID_CERTIFICATIONS: CertificationType[] = ['PLIDA', 'CILS']
+const VALID_TEXT_TYPES: TextType[] = ['email', 'tema', 'lettera_formale', 'racconto', 'saggio', 'riassunto', 'altro']
 
 export async function POST(
   request: NextRequest,
@@ -47,19 +52,32 @@ export async function POST(
       )
     }
 
-    // Parse optional level from request body
+    // Parse correction parameters from request body
     let level: ItalianLevel = 'B1'
+    let certification: CertificationType = 'CILS'
+    let textType: TextType = 'tema'
     try {
       const body = await request.json()
-      if (body?.level && ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(body.level)) {
+      if (body?.level && VALID_LEVELS.includes(body.level)) {
         level = body.level as ItalianLevel
       }
+      if (body?.certification && VALID_CERTIFICATIONS.includes(body.certification)) {
+        certification = body.certification as CertificationType
+      }
+      if (body?.textType && VALID_TEXT_TYPES.includes(body.textType)) {
+        textType = body.textType as TextType
+      }
     } catch {
-      // No body or invalid JSON, use default level
+      // No body or invalid JSON, use defaults
     }
 
     // ─── Call AI correction ─────────────────────────────────
-    const correction = await correctEssay(essay.content, level)
+    const correction = await correctWriting({
+      text: essay.content,
+      level,
+      certification,
+      textType,
+    })
 
     // Verify we got a valid correction (safety net)
     if (!correction || typeof correction.score !== 'number') {

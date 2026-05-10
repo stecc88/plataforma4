@@ -1,14 +1,23 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/app-store'
 import { apiFetch } from '@/components/scribia/api-fetch'
+import type {
+  AICorrection,
+  CorrectionError,
+  ErrorType,
+  StrengthCategory,
+  ScoreBreakdown,
+  CertificationType,
+} from '@/lib/ai-correction.types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Progress } from '@/components/ui/progress'
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,13 +42,11 @@ import {
   BookOpen,
   AlertTriangle,
   Lightbulb,
-  MessageSquare,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   PenLine,
   Sparkles,
-  BookMarked,
   Type,
   ArrowRight,
   GraduationCap,
@@ -48,44 +55,28 @@ import {
   AlertCircle,
   Brain,
   Link2,
+  Award,
+  Target,
+  BookMarked,
+  MessageSquare,
+  Quote,
+  Repeat,
+  ListChecks,
+  Heart,
 } from 'lucide-react'
-
-/* ─── Types ──────────────────────────────────────────────────── */
-
-interface CorrectionError {
-  type: 'grammar' | 'spelling' | 'punctuation' | 'syntax' | 'vocabulary' | 'style'
-  original: string
-  correction: string
-  explanation: string
-  position: number
-}
-
-interface CorrectionSuggestions {
-  connectors: string[]
-  synonyms: Array<{ word: string; alternatives: string[] }>
-}
-
-interface AICorrection {
-  correctedText: string
-  score: number
-  errors: CorrectionError[]
-  grammarNotes: string[]
-  vocabularyNotes: string[]
-  styleNotes: string[]
-  suggestions: CorrectionSuggestions
-  studyTopics: string[]
-  selfAssessment?: {
-    selfScore: number
-    selfNotes: string
-    submittedAt: string
-  }
-}
 
 /* ─── Error type config ──────────────────────────────────────── */
 
 const ERROR_TYPE_CONFIG: Record<
-  CorrectionError['type'],
-  { label: string; color: string; bgColor: string; underlineClass: string; badgeClass: string; cefrLevel: string }
+  ErrorType,
+  {
+    label: string
+    color: string
+    bgColor: string
+    underlineClass: string
+    badgeClass: string
+    cefrLevel: string
+  }
 > = {
   grammar: {
     label: 'Grammatica',
@@ -134,6 +125,75 @@ const ERROR_TYPE_CONFIG: Record<
     underlineClass: 'underline decoration-teal-500 decoration-2 underline-offset-4',
     badgeClass: 'bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800',
     cefrLevel: 'B2–C2',
+  },
+}
+
+/* ─── Strength category config ───────────────────────────────── */
+
+const STRENGTH_CATEGORY_CONFIG: Record<
+  StrengthCategory,
+  { label: string; icon: typeof Star; color: string; bgColor: string }
+> = {
+  connectors: {
+    label: 'Connettivi',
+    icon: Link2,
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-500/10',
+  },
+  vocabulary: {
+    label: 'Vocabolario',
+    icon: Type,
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-500/10',
+  },
+  structure: {
+    label: 'Struttura',
+    icon: BookOpen,
+    color: 'text-sky-600 dark:text-sky-400',
+    bgColor: 'bg-sky-500/10',
+  },
+  style: {
+    label: 'Stile',
+    icon: PenLine,
+    color: 'text-teal-600 dark:text-teal-400',
+    bgColor: 'bg-teal-500/10',
+  },
+  coherence: {
+    label: 'Coerenza',
+    icon: Brain,
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-500/10',
+  },
+  other: {
+    label: 'Altro',
+    icon: Star,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
+  },
+}
+
+/* ─── Score breakdown config ─────────────────────────────────── */
+
+const SCORE_BREAKDOWN_LABELS: Record<keyof ScoreBreakdown, { label: string; icon: typeof Target; color: string }> = {
+  communicativeAdequacy: {
+    label: 'Adeguamento comunicativo',
+    icon: MessageSquare,
+    color: 'bg-sky-500',
+  },
+  grammaticalAccuracy: {
+    label: 'Correttezza grammaticale',
+    icon: GraduationCap,
+    color: 'bg-red-500',
+  },
+  lexicalRichness: {
+    label: 'Ricchezza lessicale',
+    icon: Type,
+    color: 'bg-amber-500',
+  },
+  textualCohesion: {
+    label: 'Coesione testuale',
+    icon: Link2,
+    color: 'bg-emerald-500',
   },
 }
 
@@ -200,74 +260,86 @@ function AnimatedScore({ score }: { score: number }) {
   )
 }
 
-/* ─── Annotated Text ─────────────────────────────────────────── */
+/* ─── Marked Text Renderer ───────────────────────────────────── */
 
-function AnnotatedText({ content, errors }: { content: string; errors: CorrectionError[] }) {
-  if (!errors || errors.length === 0) {
-    return (
-      <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap">
-        {content}
-      </div>
-    )
-  }
+function MarkedTextRenderer({ markedText }: { markedText: string }) {
+  const segments = useMemo(() => {
+    if (!markedText) return []
+    const result: Array<{
+      type: 'text' | 'error' | 'suggestion'
+      content: string
+      correction?: string
+    }> = []
 
-  // Sort errors by position
-  const sortedErrors = [...errors].sort((a, b) => a.position - b.position)
+    // Combined regex: matches ~~error~~ → **correction** OR [original] → {better}
+    const pattern = /~~([^~]+)~~\s*→\s*\*\*([^*]+)\*\*|\[([^\]]+)\]\s*→\s*\{([^}]+)\}/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
 
-  // Check if positions are valid (within text bounds)
-  const hasValidPositions = sortedErrors.some(
-    (e) => e.position >= 0 && e.position < content.length
-  )
+    while ((match = pattern.exec(markedText)) !== null) {
+      // Text before the match
+      if (match.index > lastIndex) {
+        result.push({ type: 'text', content: markedText.slice(lastIndex, match.index) })
+      }
 
-  if (!hasValidPositions) {
-    // Show plain text with error list below
-    return (
-      <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap">
-        {content}
-      </div>
-    )
-  }
+      if (match[1] !== undefined) {
+        // ~~error~~ → **correction** pattern
+        result.push({ type: 'error', content: match[1], correction: match[2] })
+      } else if (match[3] !== undefined) {
+        // [original] → {better} pattern
+        result.push({ type: 'suggestion', content: match[3], correction: match[4] })
+      }
 
-  // Build annotated text segments
-  const segments: Array<{ text: string; error?: CorrectionError }> = []
-  let lastPos = 0
-
-  for (const error of sortedErrors) {
-    if (error.position < lastPos || error.position >= content.length) continue
-
-    // Text before error
-    if (error.position > lastPos) {
-      segments.push({ text: content.slice(lastPos, error.position) })
+      lastIndex = match.index + match[0].length
     }
 
-    // Error text
-    const errorLength = error.original.length
-    const endPos = Math.min(error.position + errorLength, content.length)
-    segments.push({ text: content.slice(error.position, endPos), error })
+    // Remaining text
+    if (lastIndex < markedText.length) {
+      result.push({ type: 'text', content: markedText.slice(lastIndex) })
+    }
 
-    lastPos = endPos
-  }
+    return result
+  }, [markedText])
 
-  // Remaining text
-  if (lastPos < content.length) {
-    segments.push({ text: content.slice(lastPos) })
+  if (segments.length === 0) {
+    return (
+      <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap">
+        {markedText || 'N/A'}
+      </div>
+    )
   }
 
   return (
     <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap">
-      {segments.map((seg, i) =>
-        seg.error ? (
-          <span
-            key={i}
-            className={ERROR_TYPE_CONFIG[seg.error.type].underlineClass}
-            title={seg.error.explanation}
-          >
-            {seg.text}
-          </span>
-        ) : (
-          <span key={i}>{seg.text}</span>
-        )
-      )}
+      {segments.map((seg, i) => {
+        if (seg.type === 'error') {
+          return (
+            <span key={i} className="inline">
+              <span className="line-through text-red-600 dark:text-red-400 bg-red-500/10 px-0.5 rounded">
+                {seg.content}
+              </span>
+              <span className="mx-1 text-muted-foreground">→</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-0.5 rounded">
+                {seg.correction}
+              </span>
+            </span>
+          )
+        }
+        if (seg.type === 'suggestion') {
+          return (
+            <span key={i} className="inline">
+              <span className="text-amber-600 dark:text-amber-400 bg-amber-500/10 px-0.5 rounded line-through decoration-amber-400/60">
+                {seg.content}
+              </span>
+              <span className="mx-1 text-muted-foreground">→</span>
+              <span className="font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-0.5 rounded">
+                {seg.correction}
+              </span>
+            </span>
+          )
+        }
+        return <span key={i}>{seg.content}</span>
+      })}
     </div>
   )
 }
@@ -283,15 +355,24 @@ function ErrorCard({ error, index }: { error: CorrectionError; index: number }) 
       <Card className="overflow-hidden">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
+            {/* Error number badge */}
             <div className={`flex size-7 items-center justify-center rounded-md shrink-0 mt-0.5 ${config.bgColor}`}>
               <span className={`text-xs font-bold ${config.color}`}>{index + 1}</span>
             </div>
             <div className="flex-1 min-w-0 space-y-1.5">
+              {/* Category + type badges */}
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={config.badgeClass}>
                   {config.label}
                 </Badge>
+                {error.category && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/20">
+                    {error.category}
+                  </Badge>
+                )}
               </div>
+
+              {/* Original → Correction */}
               <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className="line-through text-red-600 dark:text-red-400 font-medium">
                   {error.original}
@@ -301,7 +382,18 @@ function ErrorCard({ error, index }: { error: CorrectionError; index: number }) 
                   {error.correction}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">{error.explanation}</p>
+
+              {/* Occurrences indicator */}
+              {error.occurrences > 1 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    ×{error.occurrences}
+                  </Badge>
+                  {error.occurrencePositions && (
+                    <span>{error.occurrencePositions}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -329,12 +421,12 @@ function ErrorCard({ error, index }: { error: CorrectionError; index: number }) 
             >
               <Separator className="my-3" />
               <div className="space-y-3 pl-10">
-                {/* Theoretical explanation */}
+                {/* Theoretical explanation (regola) */}
                 <div>
                   <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Regola Grammaticale
                   </h5>
-                  <p className="text-sm leading-relaxed">{error.explanation}</p>
+                  <p className="text-sm leading-relaxed">{error.regola}</p>
                 </div>
 
                 {/* Examples */}
@@ -343,15 +435,15 @@ function ErrorCard({ error, index }: { error: CorrectionError; index: number }) 
                     Esempi
                   </h5>
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm">
-                      <AlertCircle className="size-3.5 text-red-500 shrink-0" />
-                      <span className="line-through text-red-600 dark:text-red-400">{error.original}</span>
-                      <span className="text-xs text-muted-foreground">(errato)</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <AlertCircle className="size-3.5 text-red-500 shrink-0 mt-0.5" />
+                      <span>{error.exampleWrong}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">(errato)</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                      <span className="text-emerald-600 dark:text-emerald-400">{error.correction}</span>
-                      <span className="text-xs text-muted-foreground">(corretto)</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{error.exampleCorrect}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">(corretto)</span>
                     </div>
                   </div>
                 </div>
@@ -454,19 +546,19 @@ function SelfAssessmentDialog({
           /* ─── Read-only view ─── */
           <div className="space-y-4 py-2">
             <div className="flex items-center justify-center py-4">
-              <AnimatedScore score={existingAssessment.selfScore} />
+              <AnimatedScore score={existingAssessment!.selfScore} />
             </div>
             <div>
               <h4 className="text-sm font-semibold mb-1">Il tuo punteggio</h4>
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {existingAssessment.selfScore}/100
+                {existingAssessment!.selfScore}/100
               </p>
             </div>
-            {existingAssessment.selfNotes && (
+            {existingAssessment!.selfNotes && (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Le tue note</h4>
                 <div className="p-3 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap">
-                  {existingAssessment.selfNotes}
+                  {existingAssessment!.selfNotes}
                 </div>
               </div>
             )}
@@ -681,6 +773,106 @@ function FadeIn({
   )
 }
 
+/* ─── Score Breakdown Bar ────────────────────────────────────── */
+
+function ScoreBreakdownBar({
+  label,
+  value,
+  max,
+  colorClass,
+  icon: Icon,
+}: {
+  label: string
+  value: number
+  max: number
+  colorClass: string
+  icon: typeof Target
+}) {
+  const percentage = Math.round((value / max) * 100)
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1.5">
+          <Icon className="size-3 text-muted-foreground" />
+          <span className="text-muted-foreground">{label}</span>
+        </div>
+        <span className="font-semibold tabular-nums">
+          {value}/{max}
+        </span>
+      </div>
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
+        <motion.div
+          className={`h-full rounded-full ${colorClass}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
+        />
+      </div>
+    </div>
+  )
+}
+
+/* ─── Certification Badge ────────────────────────────────────── */
+
+function CertificationBadge({ certification }: { certification: CertificationType }) {
+  const isPlida = certification === 'PLIDA'
+  return (
+    <Badge
+      className={`gap-1 ${
+        isPlida
+          ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
+          : 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800'
+      }`}
+    >
+      <Award className="size-3" />
+      {certification}
+    </Badge>
+  )
+}
+
+/* ─── Strength Card ──────────────────────────────────────────── */
+
+function StrengthCard({ strength }: { strength: AICorrection['strengths'][number] }) {
+  const config = STRENGTH_CATEGORY_CONFIG[strength.category]
+  const Icon = config.icon
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={`flex size-8 items-center justify-center rounded-md shrink-0 ${config.bgColor}`}>
+            <Icon className={`size-4 ${config.color}`} />
+          </div>
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{strength.label}</span>
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${config.color} border-current/20`}>
+                {config.label}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {strength.description}
+            </p>
+            {strength.examples.length > 0 && (
+              <div className="space-y-1 pt-1">
+                {strength.examples.map((ex, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-1.5 text-xs bg-emerald-500/5 dark:bg-emerald-500/10 rounded px-2 py-1"
+                  >
+                    <Quote className="size-3 text-emerald-500 shrink-0 mt-0.5" />
+                    <span className="italic text-emerald-700 dark:text-emerald-300">&ldquo;{ex}&rdquo;</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 /* ─── Main Component ─────────────────────────────────────────── */
 
 export function EssayDetail() {
@@ -699,7 +891,14 @@ export function EssayDetail() {
   const correction = currentEssay.aiCorrection as AICorrection | null
   const isCorrected = currentEssay.status === 'CORRECTED'
   const errors = correction?.errors || []
+  const strengths = correction?.strengths || []
   const score = currentEssay.aiScore ?? correction?.score ?? 0
+
+  const certification = correction?.certification ?? 'CILS'
+  const level = correction?.level ?? ''
+  const scoreBreakdown = correction?.scoreBreakdown
+  const isCILS = certification === 'CILS'
+  const breakdownMax = isCILS ? 5 : 25
 
   const handleRefresh = async () => {
     await fetchEssays()
@@ -798,48 +997,90 @@ export function EssayDetail() {
       {/* ─── Corrected essay: full detail ─── */}
       {isCorrected && correction && (
         <>
-          {/* ─── Score card ─── */}
+          {/* ─── Enhanced Score Card ─── */}
           <FadeIn delay={0.1}>
             <Card>
               <CardContent className="pt-6">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <AnimatedScore score={score} />
-                  <div className="flex-1 text-center sm:text-left space-y-2">
-                    <h3 className="text-lg font-semibold">Punteggio AI</h3>
+                  <div className="flex-1 text-center sm:text-left space-y-3 w-full">
+                    {/* Title + badges */}
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">Punteggio AI</h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CertificationBadge certification={certification} />
+                        {level && (
+                          <Badge variant="outline" className="gap-1">
+                            <GraduationCap className="size-3" />
+                            {level}
+                          </Badge>
+                        )}
+                        {errors.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            <AlertTriangle className="size-3 mr-1" />
+                            {errors.length} {errors.length === 1 ? 'errore' : 'errori'}
+                          </Badge>
+                        )}
+                        {strengths.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            <Star className="size-3 mr-1" />
+                            {strengths.length} {strengths.length === 1 ? 'punto forte' : 'punti forti'}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Score description */}
                     <p className="text-sm text-muted-foreground">
                       {score >= 70
                         ? 'Ottimo lavoro! Il tuo testo dimostra una buona padronanza della lingua italiana.'
                         : score >= 40
                         ? 'Buon tentativo! Ci sono aspetti che possono essere migliorati.'
-                        : 'Il testo necessita di miglioramenti significati. Continua a esercitarti!'}
+                        : 'Il testo necessita di miglioramenti significativi. Continua a esercitarti!'}
                     </p>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {errors.length > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <AlertTriangle className="size-3 mr-1" />
-                          {errors.length} {errors.length === 1 ? 'errore' : 'errori'}
-                        </Badge>
-                      )}
-                      {(correction.grammarNotes?.length ?? 0) > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <BookOpen className="size-3 mr-1" />
-                          {correction.grammarNotes!.length} note grammaticali
-                        </Badge>
-                      )}
-                    </div>
+
+                    {/* Score breakdown bars */}
+                    {scoreBreakdown && (
+                      <div className="space-y-2 pt-1">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Dettaglio punteggio
+                        </h4>
+                        <div className="space-y-2.5">
+                          {(Object.keys(SCORE_BREAKDOWN_LABELS) as Array<keyof ScoreBreakdown>).map((key) => {
+                            const cfg = SCORE_BREAKDOWN_LABELS[key]
+                            return (
+                              <ScoreBreakdownBar
+                                key={key}
+                                label={cfg.label}
+                                value={scoreBreakdown[key]}
+                                max={breakdownMax}
+                                colorClass={cfg.color}
+                                icon={cfg.icon}
+                              />
+                            )
+                          })}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {isCILS
+                            ? 'Criteri di valutazione CILS — ogni area /5'
+                            : 'Criteri di valutazione PLIDA — ogni area /25'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </FadeIn>
 
-          {/* ─── Tabs: Original | Corrected | Errors | Suggestions ─── */}
+          {/* ─── Tabs: Marked Text | Corrected | Errors | Strengths & Suggestions ─── */}
           <FadeIn delay={0.2}>
-            <Tabs defaultValue="original" className="w-full">
-              <TabsList className="w-full sm:w-auto flex-wrap">
-                <TabsTrigger value="original" className="gap-1.5">
+            <Tabs defaultValue="marked" className="w-full">
+              <TabsList className="w-full sm:w-auto flex-wrap h-auto gap-1 p-1">
+                <TabsTrigger value="marked" className="gap-1.5">
                   <PenLine className="size-3.5" />
-                  <span className="hidden sm:inline">Originale</span>
+                  <span className="hidden sm:inline">Con Marcature</span>
+                  <span className="sm:hidden">Marcature</span>
                 </TabsTrigger>
                 <TabsTrigger value="corrected" className="gap-1.5">
                   <CheckCircle2 className="size-3.5" />
@@ -854,46 +1095,42 @@ export function EssayDetail() {
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="suggestions" className="gap-1.5">
-                  <Lightbulb className="size-3.5" />
-                  <span className="hidden sm:inline">Suggerimenti</span>
+                <TabsTrigger value="strengths" className="gap-1.5">
+                  <Sparkles className="size-3.5" />
+                  <span className="hidden sm:inline">Punti Forti e Suggerimenti</span>
+                  <span className="sm:hidden">Forzi e Suggerimenti</span>
                 </TabsTrigger>
               </TabsList>
 
-              {/* ─── Tab: Original with annotations ─── */}
-              <TabsContent value="original">
+              {/* ─── Tab: Marked Text ─── */}
+              <TabsContent value="marked">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <PenLine className="size-4 text-muted-foreground" />
-                      Testo Originale con Annotazioni
+                      Testo con Marcature
                     </CardTitle>
                     <CardDescription>
-                      Le parti sottolineate indicano gli errori rilevati dall&apos;AI.
+                      Il testo originale con le correzioni evidenziate inline dall&apos;AI.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <AnnotatedText content={currentEssay.content} errors={errors} />
+                    <MarkedTextRenderer markedText={correction.markedText} />
                     {/* Legend */}
-                    {errors.length > 0 && (
-                      <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="underline decoration-red-500 decoration-2 underline-offset-4">
-                            Grammatica/Ortografia/Sintassi
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="underline decoration-amber-400 decoration-2 underline-offset-4">
-                            Punteggiatura/Vocabolario
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="underline decoration-teal-500 decoration-2 underline-offset-4">
-                            Stile
-                          </span>
-                        </div>
+                    <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="line-through text-red-600 dark:text-red-400 bg-red-500/10 px-1 rounded">errato</span>
+                        <span className="mx-0.5">→</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 rounded">correzione</span>
+                        <span className="ml-1">Correzione</span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="line-through text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1 rounded">termine</span>
+                        <span className="mx-0.5">→</span>
+                        <span className="font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-1 rounded">alternativa</span>
+                        <span className="ml-1">Suggerimento</span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -911,6 +1148,16 @@ export function EssayDetail() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {/* Certification & level info */}
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <CertificationBadge certification={certification} />
+                      {level && (
+                        <Badge variant="outline" className="gap-1">
+                          <GraduationCap className="size-3" />
+                          Livello {level}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-200/50 dark:border-emerald-800/30 text-sm leading-relaxed whitespace-pre-wrap">
                       {correction.correctedText || 'N/A'}
                     </div>
@@ -920,254 +1167,263 @@ export function EssayDetail() {
 
               {/* ─── Tab: Errors ─── */}
               <TabsContent value="errors">
-                <div className="space-y-4">
-                  {/* Grammar errors section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <AlertTriangle className="size-4 text-amber-500" />
-                        Errori Grammaticali
-                      </CardTitle>
-                      <CardDescription>
-                        Clicca su ogni errore per vedere la spiegazione completa e la regola grammaticale.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {errors.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <CheckCircle2 className="size-10 mx-auto mb-2 opacity-30" />
-                          <p>Nessun errore trovato!</p>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertTriangle className="size-4 text-amber-500" />
+                      Errori Trovati
+                    </CardTitle>
+                    <CardDescription>
+                      Clicca su ogni errore per vedere la regola grammaticale completa e gli esempi.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {errors.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle2 className="size-10 mx-auto mb-2 opacity-30" />
+                        <p className="font-medium">Nessun errore trovato!</p>
+                        <p className="text-sm mt-1">Ottimo lavoro, il tuo testo è grammaticalmente corretto.</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Error type summary */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {(() => {
+                            const typeCounts: Partial<Record<ErrorType, number>> = {}
+                            for (const e of errors) {
+                              typeCounts[e.type] = (typeCounts[e.type] || 0) + 1
+                            }
+                            return (Object.entries(typeCounts) as [ErrorType, number][]).map(([type, count]) => {
+                              const cfg = ERROR_TYPE_CONFIG[type]
+                              return (
+                                <Badge key={type} variant="outline" className={cfg.badgeClass}>
+                                  {cfg.label} ({count})
+                                </Badge>
+                              )
+                            })
+                          })()}
                         </div>
-                      ) : (
                         <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
                           {errors.map((error, i) => (
-                            <ErrorCard key={i} error={error} index={i} />
+                            <ErrorCard key={error.id} error={error} index={i} />
                           ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                  {/* Grammar notes */}
-                  {correction.grammarNotes && correction.grammarNotes.length > 0 && (
+              {/* ─── Tab: Strengths & Suggestions ─── */}
+              <TabsContent value="strengths">
+                <div className="space-y-4">
+
+                  {/* ── Strengths section ── */}
+                  {strengths.length > 0 && (
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center gap-2">
-                          <BookOpen className="size-4 text-emerald-500" />
-                          Note Grammaticali
+                          <Star className="size-4 text-amber-500" />
+                          Punti Forti
                         </CardTitle>
+                        <CardDescription>
+                          Aspetti positivi del tuo testo identificati dall&apos;esaminatore AI.
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <ul className="space-y-2">
-                          {correction.grammarNotes.map((note, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm">
-                              <BookMarked className="size-4 text-emerald-500 shrink-0 mt-0.5" />
-                              <span>{note}</span>
-                            </li>
+                        <div className="space-y-3">
+                          {strengths.map((strength, i) => (
+                            <StrengthCard key={i} strength={strength} />
                           ))}
-                        </ul>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
-                </div>
-              </TabsContent>
 
-              {/* ─── Tab: Suggestions ─── */}
-              <TabsContent value="suggestions">
-                <div className="space-y-4">
-                  {/* Vocabulary section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Type className="size-4 text-amber-500" />
-                        Vocabolario
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Vocabulary notes */}
-                      {correction.vocabularyNotes && correction.vocabularyNotes.length > 0 && (
-                        <div>
-                          <h5 className="text-sm font-semibold mb-2">Note sul Vocabolario</h5>
-                          <ul className="space-y-2">
-                            {correction.vocabularyNotes.map((note, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm">
-                                <MessageSquare className="size-4 text-amber-500 shrink-0 mt-0.5" />
-                                <span>{note}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Synonyms */}
-                      {correction.suggestions?.synonyms &&
-                        correction.suggestions.synonyms.length > 0 && (
+                  {/* ── Connectors section ── */}
+                  {correction.suggestions?.connectors && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Link2 className="size-4 text-emerald-500" />
+                          Connettivi
+                        </CardTitle>
+                        <CardDescription>
+                          Connettivi utilizzati e suggeriti per migliorare la coesione del testo.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Used connectors */}
+                        {correction.suggestions.connectors.used.length > 0 && (
                           <div>
-                            <Separator className="mb-4" />
-                            <h5 className="text-sm font-semibold mb-3">Sinonimi Suggeriti</h5>
-                            <div className="space-y-3">
-                              {correction.suggestions.synonyms.map((syn, i) => (
-                                <div key={i} className="flex flex-wrap items-center gap-2">
-                                  <Badge
-                                    variant="outline"
-                                    className="text-sm font-medium border-amber-300 dark:border-amber-700"
-                                  >
-                                    {syn.word}
-                                  </Badge>
-                                  <ArrowRight className="size-3.5 text-muted-foreground" />
-                                  {syn.alternatives.map((alt, j) => (
-                                    <Badge
-                                      key={j}
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      {alt}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {(!correction.vocabularyNotes?.length &&
-                        !correction.suggestions?.synonyms?.length) && (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Nessun suggerimento sul vocabolario.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Style section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Sparkles className="size-4 text-teal-500" />
-                        Stile
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Style notes */}
-                      {correction.styleNotes && correction.styleNotes.length > 0 && (
-                        <div>
-                          <h5 className="text-sm font-semibold mb-2">Note sullo Stile</h5>
-                          <ul className="space-y-2">
-                            {correction.styleNotes.map((note, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm">
-                                <Sparkles className="size-4 text-teal-500 shrink-0 mt-0.5" />
-                                <span>{note}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Connectors */}
-                      {correction.suggestions?.connectors &&
-                        correction.suggestions.connectors.length > 0 && (
-                          <div>
-                            <Separator className="mb-4" />
-                            <h5 className="text-sm font-semibold mb-3">Connettori Suggeriti</h5>
-                            <div className="flex flex-wrap gap-2">
-                              {correction.suggestions.connectors.map((conn, i) => (
+                            <h5 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                              <CheckCircle2 className="size-3.5 text-emerald-500" />
+                              Connettivi utilizzati
+                            </h5>
+                            <div className="flex flex-wrap gap-1.5">
+                              {correction.suggestions.connectors.used.map((c, i) => (
                                 <Badge
                                   key={i}
-                                  variant="outline"
-                                  className="text-xs border-teal-300 dark:border-teal-700"
+                                  className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
                                 >
-                                  <Link2 className="size-3 mr-1" />
-                                  {conn}
+                                  {c}
                                 </Badge>
                               ))}
                             </div>
                           </div>
                         )}
 
-                      {(!correction.styleNotes?.length &&
-                        !correction.suggestions?.connectors?.length) && (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Nessun suggerimento sullo stile.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
+                        {/* Recommended connectors */}
+                        {correction.suggestions.connectors.recommended.length > 0 && (
+                          <div>
+                            {correction.suggestions.connectors.used.length > 0 && (
+                              <Separator className="mb-4" />
+                            )}
+                            <h5 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                              <Lightbulb className="size-3.5 text-amber-500" />
+                              Connettivi consigliati
+                            </h5>
+                            <div className="flex flex-wrap gap-1.5">
+                              {correction.suggestions.connectors.recommended.map((c, i) => (
+                                <Badge
+                                  key={i}
+                                  variant="outline"
+                                  className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400"
+                                >
+                                  {c}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                  {/* Study topics */}
+                        {correction.suggestions.connectors.used.length === 0 &&
+                          correction.suggestions.connectors.recommended.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              Nessun suggerimento sui connettivi disponibile.
+                            </p>
+                          )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* ── Synonyms section ── */}
+                  {correction.suggestions?.synonyms &&
+                    correction.suggestions.synonyms.length > 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Repeat className="size-4 text-amber-500" />
+                            Sinonimi Suggeriti
+                          </CardTitle>
+                          <CardDescription>
+                            Parole ripetute nel tuo testo con alternative consigliate.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {correction.suggestions.synonyms.map((syn, i) => (
+                              <div
+                                key={i}
+                                className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-muted/30"
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className="text-sm font-medium border-amber-300 dark:border-amber-700"
+                                >
+                                  {syn.word}
+                                </Badge>
+                                {syn.count > 1 && (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    ×{syn.count}
+                                  </Badge>
+                                )}
+                                <ArrowRight className="size-3.5 text-muted-foreground" />
+                                {syn.alternatives.map((alt, j) => (
+                                  <Badge
+                                    key={j}
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {alt}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                  {/* ── Study Topics section ── */}
                   {correction.studyTopics && correction.studyTopics.length > 0 && (
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center gap-2">
-                          <GraduationCap className="size-4 text-emerald-500" />
-                          Argomenti di Studio Suggeriti
+                          <ListChecks className="size-4 text-purple-500" />
+                          Argomenti da Ripassare
                         </CardTitle>
                         <CardDescription>
-                          Argomenti da rivedere per migliorare le tue competenze linguistiche.
+                          Temi grammaticali e testuali da approfondire per migliorare.
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <ul className="space-y-2">
+                        <div className="space-y-2">
                           {correction.studyTopics.map((topic, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm">
-                              <GraduationCap className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+                            <div
+                              key={i}
+                              className="flex items-center gap-2.5 text-sm p-2 rounded-md bg-purple-500/5 dark:bg-purple-500/10"
+                            >
+                              <BookMarked className="size-4 text-purple-500 shrink-0" />
                               <span>{topic}</span>
-                            </li>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
 
-                  {/* Self-assessment summary if exists */}
-                  {correction.selfAssessment && (
-                    <Card className="border-emerald-200 dark:border-emerald-800/50">
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <ClipboardCheck className="size-4 text-emerald-500" />
-                          La Tua Autovalutazione
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center gap-4">
-                          <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            {correction.selfAssessment.selfScore}/100
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            Punteggio auto-assegnato
-                          </span>
-                        </div>
-                        {correction.selfAssessment.selfNotes && (
-                          <div className="p-3 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap">
-                            {correction.selfAssessment.selfNotes}
+                  {/* ── Final Note ── */}
+                  {correction.finalNote && (
+                    <Card className="border-emerald-200/50 dark:border-emerald-800/30">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-full bg-emerald-500/10 shrink-0">
+                            <Heart className="size-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
-                        )}
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                              Nota dell&apos;esaminatore
+                            </h4>
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                              {correction.finalNote}
+                            </p>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
+
+                  {/* Empty state */}
+                  {strengths.length === 0 &&
+                    !correction.suggestions?.connectors &&
+                    (!correction.suggestions?.synonyms || correction.suggestions.synonyms.length === 0) &&
+                    (!correction.studyTopics || correction.studyTopics.length === 0) &&
+                    !correction.finalNote && (
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Sparkles className="size-10 mx-auto mb-2 opacity-30" />
+                            <p>Nessun suggerimento disponibile per questo tema.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                 </div>
               </TabsContent>
             </Tabs>
           </FadeIn>
         </>
-      )}
-
-      {/* ─── Teacher notes ─── */}
-      {currentEssay.teacherNotes && (
-        <FadeIn delay={0.3}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare className="size-4 text-amber-500" />
-                Note dell&apos;Insegnante
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-200/50 dark:border-amber-800/30 text-sm whitespace-pre-wrap">
-                {currentEssay.teacherNotes}
-              </div>
-            </CardContent>
-          </Card>
-        </FadeIn>
       )}
     </div>
   )

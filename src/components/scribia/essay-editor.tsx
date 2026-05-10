@@ -28,12 +28,20 @@ import {
   Clock,
   AlertCircle,
   Brain,
+  GraduationCap,
+  BookOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  type ItalianLevel,
+  type CertificationType,
+  type TextType,
+  TEXT_TYPE_LABELS,
+  CERTIFICATION_LABELS,
+  LEVEL_LABELS,
+} from '@/lib/ai-correction.types'
 
 /* ─── Types ──────────────────────────────────────────────────── */
-
-type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 
 interface CreateEssayResponse {
   essay: EssayItem
@@ -93,7 +101,7 @@ function LoadingOverlay() {
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           className="text-lg font-semibold text-foreground"
         >
-          L&apos;IA sta correggendo il tuo saggio...
+          L&apos;IA sta correggendo il tuo testo...
         </motion.p>
         <p className="text-sm text-muted-foreground">Potrebbe richiedere qualche secondo</p>
       </div>
@@ -109,7 +117,9 @@ export function EssayEditor() {
   // Form state
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [level, setLevel] = useState<Level>('B1')
+  const [level, setLevel] = useState<ItalianLevel>('B1')
+  const [certification, setCertification] = useState<CertificationType>('CILS')
+  const [textType, setTextType] = useState<TextType>('tema')
 
   // Validation state
   const [titleError, setTitleError] = useState<string | null>(null)
@@ -181,13 +191,13 @@ export function EssayEditor() {
 
       const createdEssay = createData.essay
 
-      // Step 2: Call AI correction (5-10 seconds)
+      // Step 2: Call AI correction with PLIDA/CILS parameters
       try {
         const correctData = await apiFetch<CorrectEssayResponse>(
           `/api/essays/${createdEssay.id}/correct`,
           {
             method: 'POST',
-            body: JSON.stringify({ level }),
+            body: JSON.stringify({ level, certification, textType }),
           }
         )
 
@@ -208,7 +218,7 @@ export function EssayEditor() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [title, content, level, validate, fetchEssays, setCurrentEssay, setCurrentView])
+  }, [title, content, level, certification, textType, validate, fetchEssays, setCurrentEssay, setCurrentView])
 
   /* ─── Derived state ───────────────────────────────────────── */
 
@@ -234,7 +244,7 @@ export function EssayEditor() {
         <div>
           <h2 className="text-2xl font-bold">Nuovo Saggio</h2>
           <p className="text-muted-foreground">
-            Scrivi il tuo saggio in italiano e ricevi una correzione AI
+            Scrivi il tuo saggio in italiano e ricevi una correzione AI certificata PLIDA/CILS
           </p>
         </div>
 
@@ -333,26 +343,75 @@ export function EssayEditor() {
               </div>
             </div>
 
-            {/* Level Selector */}
-            <div className="space-y-2">
-              <Label htmlFor="essay-level" className="text-sm font-medium">
-                Livello CEFR
-              </Label>
-              <Select value={level} onValueChange={(v) => setLevel(v as Level)} disabled={isAnyLoading}>
-                <SelectTrigger id="essay-level" className="w-full sm:w-48">
-                  <SelectValue placeholder="Seleziona livello" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="A1">A1 — Principiante</SelectItem>
-                  <SelectItem value="A2">A2 — Elementare</SelectItem>
-                  <SelectItem value="B1">B1 — Intermedio</SelectItem>
-                  <SelectItem value="B2">B2 — Intermedio superiore</SelectItem>
-                  <SelectItem value="C1">C1 — Avanzato</SelectItem>
-                  <SelectItem value="C2">C2 — Padronanza</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Correction Settings */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="size-4 text-emerald-600 dark:text-emerald-400" />
+                <h4 className="text-sm font-semibold">Impostazioni Correzione</h4>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Certification Selector */}
+                <div className="space-y-2">
+                  <Label htmlFor="essay-certification" className="text-sm font-medium">
+                    Certificazione
+                  </Label>
+                  <Select value={certification} onValueChange={(v) => setCertification(v as CertificationType)} disabled={isAnyLoading}>
+                    <SelectTrigger id="essay-certification">
+                      <SelectValue placeholder="Seleziona certificazione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(CERTIFICATION_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Level Selector */}
+                <div className="space-y-2">
+                  <Label htmlFor="essay-level" className="text-sm font-medium">
+                    Livello QCER
+                  </Label>
+                  <Select value={level} onValueChange={(v) => setLevel(v as ItalianLevel)} disabled={isAnyLoading}>
+                    <SelectTrigger id="essay-level">
+                      <SelectValue placeholder="Seleziona livello" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LEVEL_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Text Type Selector */}
+                <div className="space-y-2">
+                  <Label htmlFor="essay-text-type" className="text-sm font-medium">
+                    Tipo di Testo
+                  </Label>
+                  <Select value={textType} onValueChange={(v) => setTextType(v as TextType)} disabled={isAnyLoading}>
+                    <SelectTrigger id="essay-text-type">
+                      <SelectValue placeholder="Seleziona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <p className="text-xs text-muted-foreground">
-                Il livello influenzerà la severità della correzione AI
+                <BookOpen className="size-3 inline mr-1" />
+                Queste impostazioni personalizzano la correzione AI secondo gli standard {certification} per il livello {level}.
               </p>
             </div>
 
@@ -382,7 +441,7 @@ export function EssayEditor() {
                 ) : (
                   <Send className="size-4 mr-2" />
                 )}
-                Invia per correzione
+                Correggi con AI
               </Button>
             </div>
           </CardContent>
