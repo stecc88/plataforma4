@@ -1,49 +1,35 @@
-# ScribIA Landing Page — Work Log
+# ScribIA — Worklog
 
-## Task ID: 4
-## Agent: Code Agent
-## Date: 2026-05-10
+---
+Task ID: 1
+Agent: main
+Task: Initialize ScribIA project — AI Italian writing assistant
 
-### Summary
-Created a stunning, production-ready landing page for ScribIA — an AI-powered Italian writing assistant.
+Work Log:
+- Explored existing project structure (Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui already configured)
+- Installed missing packages: bcryptjs, @types/bcryptjs, jose, @supabase/supabase-js
+- Verified all 19 required shadcn/ui components are present (button, card, input, label, textarea, select, tabs, dialog, sheet, badge, progress, separator, skeleton, avatar, table, tooltip, toast, sonner, dropdown-menu)
+- Created .env.local with empty variables for NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, GEMINI_API_KEY
+- Created .gitignore (node_modules, .next, .env*, db/, prisma/, logs, IDE files)
+- Created src/lib/supabase.ts — Supabase client with service_role and anon key
+- Created src/lib/auth.ts — JWT utilities (jose HS256) + password hashing (bcryptjs)
+- Created src/store/auth.ts — Zustand auth store
+- Created src/store/writing.ts — Zustand writing project store
+- Updated src/app/layout.tsx — ScribIA branding, ThemeProvider, Italian lang
+- Created src/app/page.tsx — Full Italian-themed landing page with:
+  - Sticky header with mobile Sheet menu
+  - Hero section with animated text reveal and Italian flag accent
+  - 6 feature cards (grammar, generation, reformulation, style, translation, creative)
+  - How it works (3 steps)
+  - Pricing (3 plans)
+  - Sticky footer
+- Renamed package.json to "scribia"
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+- Initial git commit made
 
-### Files Modified
-
-1. **src/app/globals.css**
-   - Customized the color palette with Italian-inspired warm tones
-   - Primary: deep emerald/teal (Tuscan countryside green)
-   - Accent: amber/gold tones
-   - Warm neutrals with subtle warm hue shifts
-   - Full light and dark mode support with custom CSS variables
-   - Custom scrollbar styling
-   - Custom theme tokens: `--emerald-accent`, `--amber-accent`, `--warm-bg`
-
-2. **src/app/layout.tsx**
-   - Updated metadata for ScribIA branding (title, description, keywords, OG tags)
-   - Changed language from "en" to "it"
-   - Added ThemeProvider from next-themes with system detection
-   - Preserved Toaster component
-
-3. **src/app/page.tsx**
-   - Complete landing page with 'use client' directive
-   - Sections: Header, Hero, Features, How It Works, Pricing, Footer
-   - Framer Motion animations: staggered entrance, hero text reveal, hover effects
-   - Responsive: mobile-first with sheet menu on mobile
-   - Light/dark mode toggle with animated icons
-   - Italian content throughout
-   - shadcn/ui components: Button, Card, Badge, Separator, Tooltip, Sheet
-   - Lucide React icons throughout
-   - Sticky footer with min-h-screen flex layout
-
-### Technical Details
-
-- **Hydration handling**: Used `useSyncExternalStore` pattern instead of `useState`+`useEffect` to avoid React lint error about setState in effects
-- **Animation architecture**: Custom `AnimatedSection` component with `useInView` for scroll-triggered animations; separate variant objects for fade-up, stagger, and hero reveal effects
-- **Color system**: Custom oklch colors for Italian palette — emerald/teal primary with amber/gold accents, warm-toned backgrounds
-- **Responsive design**: Grid adapts 1→2→3 columns for features; mobile sheet menu; touch-friendly targets
-
-### Lint Status
-✅ ESLint passes with no errors or warnings
-
-### Dev Server Status
-✅ Compiles and serves successfully on port 3000
+Stage Summary:
+- ScribIA project fully initialized and compiling
+- All dependencies installed: Next.js 16, TypeScript 5, Tailwind CSS 4, shadcn/ui (NY), Framer Motion, Supabase, bcryptjs, jose, Zustand, z-ai-web-dev-sdk
+- Landing page live at / with Italian-themed design, light/dark mode, animations
+- No Prisma — using Supabase directly with service_role key
