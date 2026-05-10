@@ -33,3 +33,21 @@ Stage Summary:
 - Supabase schema tightened (RLS, indexes)
 - Dead code removed (unused stores, unused supabaseAnon)
 - Project is production-ready for Vercel deployment
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix role selection in registration form and favicon 404, push to GitHub
+
+Work Log:
+- Diagnosed the role selection issue: Radix Select uses a Portal that renders at body level, but the auth modal overlay (fixed z-[100], backdrop-blur) steals focus/clicks, causing the Select dropdown to immediately close or not open at all
+- Replaced the Radix Select dropdown with native toggle-style buttons for the 2 role options (Studente/Docente) — better UX for 2-option choices and avoids the portal/z-index issue entirely
+- Added public/favicon.ico (16x16 green gradient circle) to resolve the /favicon.ico 404 error
+- Updated layout.tsx metadata icons to reference both favicon.ico and favicon.svg
+- Committed changes and force-pushed to GitHub repo stecc88/scribia
+- Removed GitHub PAT from remote URL after push
+
+Stage Summary:
+- Role selection now works via clickable toggle buttons instead of broken dropdown
+- Favicon 404 resolved with new favicon.ico file
+- Code pushed to https://github.com/stecc88/scribia
