@@ -358,3 +358,208 @@ Stage Summary:
 - Tabbed navigation: Original/Corrected/Errors/Suggestions
 - Italian language UI, emerald/teal/amber color scheme, Framer Motion animations
 - Integrated into AppShell replacing old simple essay detail view
+
+---
+Task ID: 2-c
+Agent: admin-api-agent
+Task: Create 3 admin API routes for ScribIA
+
+Work Log:
+- Created GET /api/admin/users/route.ts — Admin-only user listing:
+  - JWT verification via getAuthFromRequest, 401/403 checks
+  - Optional query filters: ?role=STUDENT|TEACHER|ADMIN, ?status=ACTIVE|PENDING|SUSPENDED
+  - Uses supabase directly for efficient querying (selects only id, email, name, role, status, teacher_code, created_at)
+  - password_hash excluded from select (never fetched from DB)
+  - Ordered by created_at desc
+  - snake_case → camelCase conversion for all response keys
+  - Returns { users: [...] }
+- Created POST /api/admin/approve-teacher/route.ts — Teacher approval:
+  - Admin-only, JWT verified
+  - Body: { userId: string }
+  - Validates user exists, role=TEACHER, status=PENDING (400 errors otherwise)
+  - Generates unique 6-char uppercase alphanumeric teacher_code with retry loop (up to 50 attempts)
+  - Updates user status to ACTIVE and assigns teacher_code
+  - Returns { user: updatedUser } with camelCase keys, no password_hash
+- Created POST /api/admin/suspend-user/route.ts — Suspend/activate users:
+  - Admin-only, JWT verified
+  - Body: { userId: string, action: 'suspend' | 'activate' }
+  - Cannot suspend yourself (userId === auth.userId → 400)
+  - Cannot suspend admin users (→ 400)
+  - Updates status to SUSPENDED (action=suspend) or ACTIVE (action=activate)
+  - Returns { user: updatedUser } with camelCase keys, no password_hash
+- All routes use NextRequest/NextResponse, try/catch with console.error, proper Italian error messages
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- 3 admin API routes created with full auth checks, validation, and error handling
+- All responses sanitized (no password_hash leaked, camelCase keys)
+- Supabase used directly for efficient queries with selective column fetching
+- Consistent error handling pattern across all routes
+
+---
+Task ID: 2-e
+Agent: stats-charts-agent
+Task: Create reusable stats chart components using shadcn/ui chart (recharts)
+
+Work Log:
+- Created src/components/scribia/stats-charts.tsx — Reusable chart component with 4 exports:
+  - ScoreProgressChart (LineChart): emerald line (#10b981), monotone curve, dots on data points, X/Y axes (0-100), ChartConfig with "score" key / "Punteggio" label, empty state "Nessun dato disponibile"
+  - CategoryScoresChart (BarChart): vertical bars with dynamic colors (emerald=highest, amber=medium, teal=others), X/Y axes (0-100), dynamic ChartConfig per category, rounded bar tops
+  - ErrorDistributionChart (PieChart): donut style (innerRadius=50, outerRadius=80), 6 color-coded error types (grammar=#ef4444, spelling=#f97316, punctuation=#f59e0b, vocabulary=#10b981, syntax=#14b8a6, style=#06b6d4), Italian labels via ERROR_TYPE_LABELS, dynamic ChartConfig, legend with nameKey="type"
+  - StatsCharts (main export): derives all chart data from EssayItem[] via useMemo:
+    * ScoreProgress: corrected essays sorted by date, Italian month abbreviations (Gen, Feb, etc.)
+    * CategoryScores: aggregates grammarNotes/vocabularyNotes/styleNotes lengths, maps to inverse scores (fewer notes = higher score)
+    * ErrorDistribution: groups errors by type from aiCorrection.errors, sorted by count descending
+    * Responsive grid: 1 col mobile, 2 col desktop (score progress spans full width on lg)
+    * Empty state when no corrected essays
+- Uses ChartContainer from shadcn/ui (NOT raw ResponsiveContainer), ChartTooltip/ChartTooltipContent, ChartLegend/ChartLegendContent
+- All Italian language UI labels
+- 'use client' directive, TypeScript strict typing
+- Lint passes with zero errors
+- Dev server compiles correctly
+
+Stage Summary:
+- 4 chart components created: ScoreProgressChart, CategoryScoresChart, ErrorDistributionChart, StatsCharts
+- Data derivation from EssayItem[] with useMemo for performance
+- shadcn/ui ChartContainer used throughout (wraps recharts ResponsiveContainer internally)
+- Italian language labels, emerald/teal/amber color scheme, no indigo/blue
+- All ChartConfig properly defined with labels and colors
+
+---
+Task ID: 2-b
+Agent: teacher-notes-preparations-agent
+Task: Create TeacherNotes and ClassPreparations components
+
+Work Log:
+- Created src/components/scribia/teacher-notes.tsx — Teacher notes management component:
+  - Header: "Le Mie Note" with StickyNote icon and description
+  - Create note: Dialog with DialogDescription (accessibility), student Select dropdown from store, Textarea for content, "Salva Nota" button
+  - POST /api/notes with { studentId, content }, refreshes notes via fetchNotes, toast success/error
+  - Filter section: Select dropdown to filter notes by student ("Tutti gli studenti" + each student)
+  - Filter badge with click-to-remove, client-side filtering of notes
+  - Notes list: student name badge with User icon, localized date (day/month/year + hour:minute), content with whitespace preservation
+  - Framer Motion stagger animation (containerVariants + itemVariants)
+  - Empty state: "Nessuna nota. Aggiungi la prima nota!"
+  - Student avatar initial with emerald styling
+- Created src/components/scribia/class-preparations.tsx — Class preparations with AI generation:
+  - Header: "Preparazioni di Classe" with GraduationCap icon and description
+  - "Genera Preparazione AI" button (emerald→teal gradient):
+    - Analyzes weaknesses from ALL students' corrected essays:
+      1. Iterates over essays where status='CORRECTED' and aiCorrection is not null
+      2. Collects all errors by type with frequency counts
+      3. Collects all studyTopics (deduplicated)
+      4. Aggregates into a weaknesses array (sorted by error frequency)
+    - Auto-detects CEFR level from average score (A1-C2 mapping)
+    - Calls POST /api/preparations/generate with { weaknesses, level }
+  - Loading overlay: fixed overlay with Brain icon pulsing + "Generando preparazione..." (matches essay-editor pattern)
+  - On success: refreshes preparations, toast success, auto-expands the new preparation
+  - On error: toast "Errore nella generazione. Riprova."
+  - PreparationCard: Collapsible card with title, date, level badge
+    - Objectives list with Target icon
+    - Activities with name, description, duration badge (Dumbbell icon)
+    - Exercises with type badge, instruction (ListChecks icon)
+    - Homework list (Home icon)
+    - Notes list (StickyNote icon)
+    - Animated chevron rotation on open/close
+  - WeaknessSummary sub-component: stats grid (corrected essays, total errors, average score), error type badges, study topic badges
+  - Info card when no corrected essays available (amber accent)
+  - Empty state: "Nessuna preparazione. Genera la prima preparazione con AI!"
+  - Framer Motion stagger animations throughout
+- Updated src/components/scribia/app-shell.tsx:
+  - Imported TeacherNotes from './teacher-notes'
+  - Imported ClassPreparations from './class-preparations'
+  - Replaced inline NotesView with <TeacherNotes />
+  - Replaced inline PreparationsView with <ClassPreparations />
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Two complete 'use client' components created and integrated into AppShell
+- TeacherNotes: full CRUD with dialog, filtering, stagger animations, Italian UI
+- ClassPreparations: AI generation with weakness analysis, loading overlay, collapsible content, weakness summary
+- Both use apiFetch, toast from sonner, emerald/teal color scheme, NO indigo/blue
+- DialogDescription included in create note dialog for accessibility
+
+---
+Task ID: 2-a
+Agent: teacher-student-detail-agent
+Task: Create teacher dashboard and student detail components
+
+Work Log:
+- Created src/components/scribia/teacher-state.ts — Simple shared state module:
+  - Module-level variables for selected student (id, name, email, enrolledAt)
+  - setSelectedStudent() to update state + notify listeners
+  - getSelectedStudent() to read current selection
+  - subscribe() for React integration (useSyncExternalStore compatible)
+  - Used by both teacher-dashboard and student-detail to pass selected student data
+- Created src/components/scribia/teacher-dashboard.tsx — Teacher overview dashboard:
+  - Header: "Bentornato, {name}!" greeting + teacher code badge
+  - Stats cards (2x2 / 4 cols grid): Total Studenti, Saggi Corretti, Media Punteggi, Saggi in Attesa
+  - Each stat card with icon, value, label, colored accent bar (emerald/teal/amber/orange)
+  - Framer Motion stagger animation for all sections
+  - Average Score Highlight card (conditional): gradient bar, TrendingUp icon, contextual message
+  - Student list card with:
+    - Avatar initial (emerald→teal gradient), name, enrolled date
+    - Essay count badge (derived from essays.filter by studentId)
+    - Latest score badge (from their corrected essays, color-coded)
+    - Click → setSelectedStudent + setCurrentView('student-detail')
+  - Quick actions: "Aggiungi nota" (→ notes view), "Genera preparazione" (→ class-preparations view)
+  - Empty states: teacher code display when no students, placeholder text
+  - Italian language, emerald/teal/amber colors, NO indigo/blue
+- Created src/components/scribia/student-detail.tsx — Student detail view for teachers:
+  - Header: back button (→ dashboard), student avatar + name
+  - Add Note dialog: DialogDescription for accessibility, Textarea, POST /api/notes, toast notifications
+  - Student info card: 4-grid layout (Name, Email, Enrolled date, Teacher code)
+  - Quick stats: 4 mini cards (Total essays, Corrected, Average score, Latest score with trend icon)
+  - Essay list: fetched from apiFetch('/api/essays?studentId='), sorted by date
+    - Each essay: status icon, title, date, score badge, status badge
+    - Click → setCurrentEssay + setCurrentView('essay-detail')
+  - Weakness Profile card (when corrected essays exist):
+    - Error type distribution: aggregated from all aiCorrection.errors, sorted by frequency
+    - Progress bars for each error type with Italian labels + color-coded badges
+    - Study topics: deduplicated from aiCorrection.studyTopics as teal badges
+    - Score trend: mini bar chart with animated heights, trend indicator (up/down/stable)
+  - Empty state when no student selected: "Seleziona uno studente dalla dashboard" with back button
+  - Italian language, emerald/teal/amber colors, Framer Motion animations
+- Updated src/components/scribia/app-shell.tsx:
+  - Imported TeacherDashboard from './teacher-dashboard'
+  - Imported StudentDetail from './student-detail'
+  - Replaced inline TeacherDashboard with imported component
+  - Replaced inline student-detail placeholder with <StudentDetail />
+  - Removed unused CheckCircle2 import
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Teacher dashboard with rich stats, clickable student list, and quick actions
+- Student detail view with essay list, weakness profiling, and add note dialog
+- Shared teacher-state.ts for passing selected student between views
+- Both components fully integrated into AppShell replacing inline placeholders
+- Italian language UI, emerald/teal/amber color scheme, Framer Motion animations
+
+---
+Task ID: 2-d
+Agent: admin-dashboard-agent
+Task: Create comprehensive admin dashboard component
+
+Work Log:
+- Created src/components/scribia/admin-dashboard.tsx — Full admin dashboard (~820 lines):
+  - Stats Overview: 4 stat cards with Framer Motion stagger animation (Studenti totali/emerald, Docenti/amber, Saggi totali/teal, Punteggio medio/orange), accent color bars, hover scale
+  - Tabs: "Utenti" | "Docenti in Attesa" | "Statistiche" using shadcn Tabs
+  - Tab 1 "Utenti": User management table with role/status filter dropdowns, RoleBadge/StatusBadge components, action buttons (Sospendi/Attiva/Approva), loading states, empty state
+  - Tab 2 "Docenti in Attesa": Card-based layout, Approva/Rifiuta buttons, confirmation Dialog with DialogDescription, loading on confirm, badge count on tab, empty state
+  - Tab 3 "Statistiche": StatsCharts component from @/components/scribia/stats-charts, empty state when no data
+  - All actions refresh data (fetchUsers + fetchPendingTeachers + fetchStats), toast notifications
+  - Confirmation dialog with DialogTitle, DialogDescription, teacher preview, Annulla/Confirm
+  - Responsive grid, Framer Motion animations
+- Updated src/components/scribia/stats-charts.tsx — Stats visualization with score distribution, status breakdown, recent essays, average score + trend
+- Updated src/components/scribia/app-shell.tsx: imported AdminDashboard, replaced inline admin views with <AdminDashboard />, cleaned up unused imports
+- Lint passes with zero errors, dev server compiles correctly
+
+Stage Summary:
+- Comprehensive admin dashboard with 3 tabs: user management, pending teacher approval, statistics
+- Full CRUD actions with confirmation dialogs, loading states, toast notifications
+- StatsCharts component with score distribution, status breakdown, recent essays
+- Italian UI, emerald/teal/amber/orange colors, NO indigo/blue
+- Responsive, Framer Motion animations, proper accessibility (DialogDescription in all dialogs)

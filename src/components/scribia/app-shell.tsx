@@ -7,6 +7,8 @@ import { useAppStore, type AppView } from '@/store/app-store'
 import { EssayEditor } from './essay-editor'
 import { EssayDetail } from './essay-detail'
 import { StudentDashboard } from './student-dashboard'
+import { TeacherDashboard } from './teacher-dashboard'
+import { StudentDetail } from './student-detail'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
@@ -22,13 +24,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   LayoutDashboard,
   FileText,
   User,
@@ -42,11 +37,12 @@ import {
   Moon,
   Feather,
   ChevronRight,
-  CheckCircle2,
-  BarChart3,
   AlertCircle,
 } from 'lucide-react'
 import { ProfileSection } from './profile-section'
+import { AdminDashboard } from './admin-dashboard'
+import { TeacherNotes } from './teacher-notes'
+import { ClassPreparations } from './class-preparations'
 
 /* ─── Hydration hook ─────────────────────────────────────────── */
 
@@ -331,183 +327,6 @@ function Header() {
   )
 }
 
-/* ─── Dashboard: Student (imported from student-dashboard.tsx) ── */
-
-/* ─── Dashboard: Teacher ─────────────────────────────────────── */
-
-function TeacherDashboard() {
-  const { stats, students, essays } = useAppStore()
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Dashboard Insegnante</h2>
-        <p className="text-muted-foreground">Panoramica dei tuoi studenti e dei loro progressi.</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                <GraduationCap className="size-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalStudents || students.length}</p>
-                <p className="text-xs text-muted-foreground">Studenti</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10">
-                <FileText className="size-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalEssays || essays.length}</p>
-                <p className="text-xs text-muted-foreground">Temi</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10">
-                <CheckCircle2 className="size-5 text-teal-600 dark:text-teal-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.correctedEssays || 0}</p>
-                <p className="text-xs text-muted-foreground">Corretti</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-orange-500/10">
-                <BarChart3 className="size-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.averageScore || 0}</p>
-                <p className="text-xs text-muted-foreground">Punteggio Medio</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Student list */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">I Tuoi Studenti</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {students.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <GraduationCap className="size-12 mx-auto mb-3 opacity-30" />
-              <p>Nessuno studente iscritto.</p>
-              <p className="text-xs mt-1">Condividi il tuo codice insegnante!</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-              {students.map((student) => (
-                <div
-                  key={student.id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex size-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold">
-                    {student.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Iscritto: {new Date(student.enrolledAt).toLocaleDateString('it-IT')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-/* ─── Dashboard: Admin ───────────────────────────────────────── */
-
-function AdminDashboard() {
-  const { stats } = useAppStore()
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Dashboard Admin</h2>
-        <p className="text-muted-foreground">Panoramica globale della piattaforma.</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                <GraduationCap className="size-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalStudents || 0}</p>
-                <p className="text-xs text-muted-foreground">Studenti</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10">
-                <Users className="size-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalTeachers || 0}</p>
-                <p className="text-xs text-muted-foreground">Insegnanti</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10">
-                <FileText className="size-5 text-teal-600 dark:text-teal-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.totalEssays || 0}</p>
-                <p className="text-xs text-muted-foreground">Temi</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-orange-500/10">
-                <BarChart3 className="size-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.averageScore || 0}</p>
-                <p className="text-xs text-muted-foreground">Punteggio Medio</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
 /* ─── Placeholder Views ──────────────────────────────────────── */
 
 function EssayEditorView() {
@@ -523,104 +342,11 @@ function ProfileView() {
 }
 
 function NotesView() {
-  const { notes } = useAppStore()
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Note</h2>
-      {notes.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center text-muted-foreground py-12">
-            <ClipboardList className="size-12 mx-auto mb-3 opacity-30" />
-            <p>Nessuna nota.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {notes.map((note) => (
-            <Card key={note.id}>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs">
-                    {note.studentName || note.studentId}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(note.createdAt).toLocaleDateString('it-IT')}
-                  </span>
-                </div>
-                <p className="text-sm">{note.content}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  return <TeacherNotes />
 }
 
 function PreparationsView() {
-  const { preparations } = useAppStore()
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Preparazioni di Classe</h2>
-      {preparations.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center text-muted-foreground py-12">
-            <BookOpen className="size-12 mx-auto mb-3 opacity-30" />
-            <p>Nessuna preparazione.</p>
-            <p className="text-xs mt-1">Genera una preparazione con AI!</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {preparations.map((prep) => (
-            <Card key={prep.id}>
-              <CardHeader>
-                <CardTitle className="text-base">{prep.title}</CardTitle>
-                <CardDescription>
-                  {new Date(prep.generatedAt).toLocaleDateString('it-IT')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {Array.isArray((prep.content as Record<string, unknown>)?.objectives)
-                    ? ((prep.content as Record<string, unknown>).objectives as string[]).join(' · ')
-                    : 'Preparazione generata da AI'}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function UsersView() {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Gestione Utenti</h2>
-      <Card>
-        <CardContent className="pt-6 text-center text-muted-foreground py-12">
-          <Users className="size-12 mx-auto mb-3 opacity-30" />
-          <p>Gestione utenti completa in arrivo.</p>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function PendingTeachersView() {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Insegnanti in Attesa</h2>
-      <Card>
-        <CardContent className="pt-6 text-center text-muted-foreground py-12">
-          <AlertCircle className="size-12 mx-auto mb-3 opacity-30" />
-          <p>Approvazione insegnanti in arrivo.</p>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <ClassPreparations />
 }
 
 /* ─── Content Router ─────────────────────────────────────────── */
@@ -650,17 +376,7 @@ function ContentArea() {
       case 'dashboard':
         return <TeacherDashboard />
       case 'student-detail':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Dettaglio Studente</h2>
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground py-12">
-                <GraduationCap className="size-12 mx-auto mb-3 opacity-30" />
-                <p>Seleziona uno studente per vedere i dettagli.</p>
-              </CardContent>
-            </Card>
-          </div>
-        )
+        return <StudentDetail />
       case 'notes':
         return <NotesView />
       case 'class-preparations':
@@ -670,17 +386,8 @@ function ContentArea() {
     }
   }
 
-  // Admin views
-  switch (currentView) {
-    case 'dashboard':
-      return <AdminDashboard />
-    case 'users':
-      return <UsersView />
-    case 'pending-teachers':
-      return <PendingTeachersView />
-    default:
-      return <AdminDashboard />
-  }
+  // Admin views — all handled by AdminDashboard (tabs)
+  return <AdminDashboard />
 }
 
 /* ─── AppShell ───────────────────────────────────────────────── */
