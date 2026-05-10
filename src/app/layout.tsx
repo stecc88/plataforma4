@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: "ScribIA — Assistente di Scrittura AI in Italiano",
   description:
     "ScribIA è il tuo assistente di scrittura AI che ti aiuta a creare, correggere e migliorare testi in italiano con precisione e creatività.",
+  icons: {
+    icon: '/favicon.svg',
+  },
   keywords: [
     "ScribIA",
     "scrittura AI",

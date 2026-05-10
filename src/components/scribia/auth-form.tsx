@@ -301,10 +301,10 @@ export function AuthForm({ initialTab = 'login', onSuccess }: AuthFormProps) {
               <div className="space-y-2">
                 <Label>Ruolo</Label>
                 <Select value={role} onValueChange={(v) => { setRole(v as 'STUDENT' | 'TEACHER'); clearErrors() }}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[110]">
                     <SelectItem value="STUDENT">✍️ Studente</SelectItem>
                     <SelectItem value="TEACHER">📚 Docente</SelectItem>
                   </SelectContent>
