@@ -122,3 +122,55 @@ Stage Summary:
 - Authentication flow: register → login → me
 - Role-based access control on all endpoints
 - All responses sanitized (no password_hash leaked)
+
+---
+Task ID: 4
+Agent: main
+Task: Create essay, stats, notes, and preparation API routes
+
+Work Log:
+- Created GET/POST /api/essays — list and create essays:
+  - Student: own essays only, can create with DRAFT status
+  - Teacher: essays from enrolled students (uses supabase IN clause)
+  - Admin: all essays
+  - Enriched with student names via supabase user lookup
+  - Filter by ?studentId=&status= query params
+- Created GET /api/essays/[id] — get specific essay:
+  - Permission checks: owner (student), enrolled teacher, admin
+  - Returns essay with studentName
+- Created POST /api/essays/[id]/correct — AI correction (CRITICAL):
+  - Only STUDENT can correct own essays
+  - Calls correctEssay() from ai.ts with optional level param (A1-C2)
+  - Robust error handling: if AI fails, returns 500 with Spanish message
+  - console.error for debugging AI failures
+  - Saves ai_correction as JSON, updates status to CORRECTED
+  - Sets ai_score and corrected_at
+- Created POST /api/essays/[id]/self-assess — self-assessment:
+  - Body: {selfScore (0-100), selfNotes}
+  - Merges selfAssessment into existing ai_correction JSON
+- Created GET /api/stats — role-based statistics:
+  - Student: own stats (totalEssays, correctedEssays, draftEssays, submittedEssays, averageScore, latestScore)
+  - Teacher: students' stats (includes totalStudents)
+  - Admin: global stats (includes totalStudents, totalTeachers)
+  - Average score calculated from corrected essays via supabase
+- Created GET/POST /api/notes — teacher notes:
+  - GET: Teacher sees own notes, Student sees notes about them, Admin sees all
+  - POST: Teacher/Admin can create notes (with enrollment verification for teachers)
+  - Enriched with teacherName and studentName
+  - Filter by ?studentId= query param
+- Created GET /api/preparations — list class preparations (Teacher/Admin)
+- Created POST /api/preparations/generate — AI lesson generation:
+  - Accepts {weaknesses[], level, studentId?, title?}
+  - Auto-derives weaknesses from student's corrected essays if studentId provided
+  - Calls generateLessonPreparation() from ai.ts
+  - Saves to database with full lesson structure
+  - Returns {preparation, lesson}
+- Lint passes with zero errors
+- Committed: feat: add essay, stats, notes, and preparation APIs
+
+Stage Summary:
+- 8 API route files created (10 endpoints total)
+- Full CRUD for essays with AI correction integration
+- Role-based access control on all endpoints
+- Supabase used directly for complex queries (IN, joins, aggregations)
+- All error handling robust with console.error for debugging
