@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, type User, type UserRole, type UserStatus } from '@/lib/db'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { hashPassword, signToken, ROLES, STATUSES } from '@/lib/auth'
 
 /* ─── Generate unique teacher code ───────────────────────────── */
@@ -24,6 +25,14 @@ function sanitizeUser(user: User) {
 
 export async function POST(request: NextRequest) {
   try {
+    // ─── Supabase configuration check ──────────────────────
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: 'Supabase non configurato. Aggiungi NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nel file .env.local' },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const { email, password, name, role, teacherCode } = body as {
       email?: string

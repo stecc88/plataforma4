@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
 import { correctWriting, AITimeoutError } from '@/lib/ai'
 import type { ItalianLevel, CertificationType, TextType } from '@/lib/ai-correction.types'
@@ -15,6 +16,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // ─── Supabase configuration check ──────────────────────
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: 'Supabase non configurato. Configura le variabili d\'ambiente.' },
+        { status: 503 }
+      )
+    }
+
     const auth = await getAuthFromRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Non autenticato' }, { status: 401 })

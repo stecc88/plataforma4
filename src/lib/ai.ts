@@ -8,7 +8,7 @@ import type {
 
 /* ─── Singleton ZAI Instance ─────────────────────────────────── */
 
-let zaiInstance: any = null
+let zaiInstance: InstanceType<typeof ZAI> | null = null
 
 async function getZAI() {
   if (!zaiInstance) {
@@ -323,13 +323,13 @@ Testo da correggere:
 
 ${text}`
 
-    const completion: any = await withTimeout(
+    const completion = await withTimeout(
       zai.chat.completions.create({
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'assistant', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.4,
+        thinking: { type: 'disabled' },
       }),
       AI_TIMEOUT_MS
     )
@@ -458,13 +458,13 @@ Restituisci UNICAMENTE un oggetto JSON valido con la seguente struttura:
 }
 Rispondi SOLO con il JSON, nessun altro testo.`
 
-    const completion: any = await withTimeout(
+    const completion = await withTimeout(
       zai.chat.completions.create({
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'assistant', content: systemPrompt },
           { role: 'user', content: `Genera una lezione per lavorare su: ${weaknesses.join(', ')}` },
         ],
-        temperature: 0.7,
+        thinking: { type: 'disabled' },
       }),
       AI_TIMEOUT_MS
     )
