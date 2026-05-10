@@ -57,12 +57,12 @@ const containerVariants = {
     opacity: 1,
     transition: { staggerChildren: 0.06 },
   },
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, y: 8 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-}
+} as const
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -72,13 +72,21 @@ interface NotesResponse {
 
 /* ─── Note Item Component ────────────────────────────────────── */
 
+interface NoteItemData {
+  id: string
+  studentId: string
+  studentName?: string
+  content: string
+  createdAt: string
+}
+
 function NoteItem({
   note,
   onEdit,
   onDelete,
 }: {
-  note: { id: string; studentId: string; studentName?: string; content: string; createdAt: string }
-  onEdit: (note: typeof note) => void
+  note: NoteItemData
+  onEdit: (note: NoteItemData) => void
   onDelete: (noteId: string) => void
 }) {
   return (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, type User, type UserRole } from '@/lib/db'
+import { db, type User, type UserRole, type UserStatus } from '@/lib/db'
 import { hashPassword, signToken, ROLES, STATUSES } from '@/lib/auth'
 
 /* ─── Generate unique teacher code ───────────────────────────── */
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hashPassword(password)
 
     // ─── Determine status ───────────────────────────────────
-    let status = STATUSES.ACTIVE
+    let status: UserStatus = STATUSES.ACTIVE
     if (role === ROLES.TEACHER) {
       status = STATUSES.PENDING // Teachers need admin approval
     }

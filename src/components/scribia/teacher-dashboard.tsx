@@ -34,7 +34,7 @@ const containerVariants = {
     opacity: 1,
     transition: { staggerChildren: 0.08, delayChildren: 0.05 },
   },
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -43,12 +43,12 @@ const itemVariants = {
     y: 0,
     transition: { duration: 0.4, ease: 'easeOut' },
   },
-}
+} as const
 
 const cardHover = {
   scale: 1.02,
   transition: { duration: 0.2 },
-}
+} as const
 
 /* ─── Stat Card ──────────────────────────────────────────────── */
 

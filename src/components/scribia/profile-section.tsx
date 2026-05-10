@@ -47,7 +47,7 @@ const containerVariants = {
       delayChildren: 0.05,
     },
   },
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -56,7 +56,7 @@ const itemVariants = {
     y: 0,
     transition: { duration: 0.4, ease: 'easeOut' },
   },
-}
+} as const
 
 /* ─── Correction Data Types ────────────────────────────────────── */
 

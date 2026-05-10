@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
-import { correctEssay, type ItalianLevel } from '@/lib/ai'
+import { correctEssay, type ItalianLevel, AITimeoutError } from '@/lib/ai'
 
 /* ─── POST /api/essays/[id]/correct — AI Correction ──────────── */
 
@@ -59,22 +59,13 @@ export async function POST(
     }
 
     // ─── Call AI correction ─────────────────────────────────
-    let correction
-    try {
-      correction = await correctEssay(essay.content, level)
-    } catch (aiError) {
-      console.error('[essays/[id]/correct] AI correction failed:', aiError)
-      return NextResponse.json(
-        { error: 'Error en la corrección AI. Intenta de nuevo.' },
-        { status: 500 }
-      )
-    }
+    const correction = await correctEssay(essay.content, level)
 
-    // Verify we got a valid correction
+    // Verify we got a valid correction (safety net)
     if (!correction || typeof correction.score !== 'number') {
       console.error('[essays/[id]/correct] Invalid AI response structure')
       return NextResponse.json(
-        { error: 'Error en la corrección AI. Intenta de nuevo.' },
+        { error: 'Errore nella correzione AI. Riprova.' },
         { status: 500 }
       )
     }
@@ -97,9 +88,18 @@ export async function POST(
       correction,
     })
   } catch (error) {
-    console.error('[essays/[id]/correct] Unexpected error:', error)
+    console.error('[essays/[id]/correct] Error:', error)
+
+    // Provide specific error message for timeout
+    if (error instanceof AITimeoutError) {
+      return NextResponse.json(
+        { error: 'La correzione AI ha impiegato troppo tempo. Riprova.' },
+        { status: 504 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Error en la corrección AI. Intenta de nuevo.' },
+      { error: 'Errore nella correzione AI. Riprova.' },
       { status: 500 }
     )
   }

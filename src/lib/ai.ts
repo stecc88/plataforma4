@@ -2,7 +2,7 @@ import ZAI from 'z-ai-web-dev-sdk'
 
 /* ─── Singleton ZAI Instance ─────────────────────────────────── */
 
-let zaiInstance: InstanceType<typeof ZAI> | null = null
+let zaiInstance: any = null
 
 async function getZAI() {
   if (!zaiInstance) {
@@ -14,6 +14,44 @@ async function getZAI() {
 /* ─── Italian Proficiency Levels ─────────────────────────────── */
 
 export type ItalianLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
+
+/* ─── Custom Error Classes ───────────────────────────────────── */
+
+export class AITimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`AI request timed out after ${timeoutMs}ms`)
+    this.name = 'AITimeoutError'
+  }
+}
+
+export class AIResponseError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'AIResponseError'
+  }
+}
+
+/* ─── Timeout Helper ─────────────────────────────────────────── */
+
+const AI_TIMEOUT_MS = 60_000 // 60 seconds
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number = AI_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new AITimeoutError(timeoutMs))
+    }, timeoutMs)
+
+    promise
+      .then((result) => {
+        clearTimeout(timer)
+        resolve(result)
+      })
+      .catch((error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
 
 /* ─── Essay Correction Types ─────────────────────────────────── */
 
@@ -63,6 +101,17 @@ export interface LessonPreparation {
   notes: string[]
 }
 
+/* ─── JSON Extraction Helper ─────────────────────────────────── */
+
+function extractJSON(content: string): string {
+  let jsonStr = content.trim()
+  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1].trim()
+  }
+  return jsonStr
+}
+
 /* ─── correctEssay ───────────────────────────────────────────── */
 
 export async function correctEssay(
@@ -97,57 +146,62 @@ Analizza il testo e restituisci UNICAMENTE un oggetto JSON valido con la seguent
 }
 Rispondi SOLO con il JSON, nessun altro testo.`
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text },
-      ],
-      temperature: 0.7,
-    })
+    const completion: any = await withTimeout(
+      zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text },
+        ],
+        temperature: 0.7,
+      }),
+      AI_TIMEOUT_MS
+    )
 
     const content = completion.choices?.[0]?.message?.content
     if (!content) {
-      throw new Error('No response from AI model')
+      throw new AIResponseError('Nessuna risposta dal modello AI')
     }
 
-    // Extract JSON from the response (handle markdown code blocks)
-    let jsonStr = content.trim()
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim()
+    // Extract and parse JSON
+    const jsonStr = extractJSON(content)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch {
+      throw new AIResponseError('Risposta AI non è un JSON valido')
     }
 
-    const parsed = JSON.parse(jsonStr) as EssayCorrection
+    const p = parsed as Record<string, unknown>
 
     // Validate essential fields
-    if (typeof parsed.score !== 'number' || !parsed.correctedText) {
-      throw new Error('Invalid AI response structure')
+    if (typeof p.score !== 'number' || !p.correctedText) {
+      throw new AIResponseError('Struttura della risposta AI non valida')
     }
 
     return {
-      correctedText: parsed.correctedText,
-      score: Math.max(0, Math.min(100, parsed.score)),
-      errors: Array.isArray(parsed.errors) ? parsed.errors : [],
-      grammarNotes: Array.isArray(parsed.grammarNotes) ? parsed.grammarNotes : [],
-      vocabularyNotes: Array.isArray(parsed.vocabularyNotes) ? parsed.vocabularyNotes : [],
-      styleNotes: Array.isArray(parsed.styleNotes) ? parsed.styleNotes : [],
-      suggestions: parsed.suggestions || { connectors: [], synonyms: [] },
-      studyTopics: Array.isArray(parsed.studyTopics) ? parsed.studyTopics : [],
+      correctedText: String(p.correctedText),
+      score: Math.max(0, Math.min(100, p.score as number)),
+      errors: Array.isArray(p.errors) ? p.errors as EssayError[] : [],
+      grammarNotes: Array.isArray(p.grammarNotes) ? p.grammarNotes as string[] : [],
+      vocabularyNotes: Array.isArray(p.vocabularyNotes) ? p.vocabularyNotes as string[] : [],
+      styleNotes: Array.isArray(p.styleNotes) ? p.styleNotes as string[] : [],
+      suggestions: (p.suggestions as EssaySuggestions) || { connectors: [], synonyms: [] },
+      studyTopics: Array.isArray(p.studyTopics) ? p.studyTopics as string[] : [],
     }
   } catch (error) {
-    console.error('[ai] correctEssay error:', error)
+    // Log for server-side debugging (never expose stack traces to client)
+    console.error('[ai] correctEssay error:', error instanceof Error ? error.message : error)
 
-    // Fallback: return a minimal correction object
-    return {
-      correctedText: text,
-      score: 0,
-      errors: [],
-      grammarNotes: ['Errore nella correzione automatica. Riprova più tardi.'],
-      vocabularyNotes: [],
-      styleNotes: [],
-      suggestions: { connectors: [], synonyms: [] },
-      studyTopics: [],
+    // Re-throw with a safe message — the API route will handle the response
+    if (error instanceof AITimeoutError) {
+      throw error
     }
+    if (error instanceof AIResponseError) {
+      throw error
+    }
+
+    // Wrap unexpected errors
+    throw new AIResponseError('Errore nella correzione automatica. Riprova più tardi.')
   }
 }
 
@@ -187,56 +241,54 @@ Restituisci UNICAMENTE un oggetto JSON valido con la seguente struttura:
 }
 Rispondi SOLO con il JSON, nessun altro testo.`
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Genera una lezione per lavorare su: ${weaknesses.join(', ')}` },
-      ],
-      temperature: 0.7,
-    })
+    const completion: any = await withTimeout(
+      zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Genera una lezione per lavorare su: ${weaknesses.join(', ')}` },
+        ],
+        temperature: 0.7,
+      }),
+      AI_TIMEOUT_MS
+    )
 
     const content = completion.choices?.[0]?.message?.content
     if (!content) {
-      throw new Error('No response from AI model')
+      throw new AIResponseError('Nessuna risposta dal modello AI')
     }
 
-    // Extract JSON from the response
-    let jsonStr = content.trim()
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim()
+    // Extract and parse JSON
+    const jsonStr = extractJSON(content)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch {
+      throw new AIResponseError('Risposta AI non è un JSON valido')
     }
 
-    const parsed = JSON.parse(jsonStr) as LessonPreparation
+    const p = parsed as Record<string, unknown>
 
     return {
-      title: parsed.title || `Lezione - ${weaknesses[0] || 'Italiano'}`,
-      level: parsed.level || level,
-      objectives: Array.isArray(parsed.objectives) ? parsed.objectives : [],
-      activities: Array.isArray(parsed.activities) ? parsed.activities : [],
-      exercises: Array.isArray(parsed.exercises) ? parsed.exercises : [],
-      homework: Array.isArray(parsed.homework) ? parsed.homework : [],
-      notes: Array.isArray(parsed.notes) ? parsed.notes : [],
+      title: String(p.title || `Lezione - ${weaknesses[0] || 'Italiano'}`),
+      level: (p.level as ItalianLevel) || level,
+      objectives: Array.isArray(p.objectives) ? p.objectives as string[] : [],
+      activities: Array.isArray(p.activities) ? p.activities as LessonPreparation['activities'] : [],
+      exercises: Array.isArray(p.exercises) ? p.exercises as LessonPreparation['exercises'] : [],
+      homework: Array.isArray(p.homework) ? p.homework as string[] : [],
+      notes: Array.isArray(p.notes) ? p.notes as string[] : [],
     }
   } catch (error) {
-    console.error('[ai] generateLessonPreparation error:', error)
+    // Log for server-side debugging
+    console.error('[ai] generateLessonPreparation error:', error instanceof Error ? error.message : error)
 
-    // Fallback
-    return {
-      title: `Lezione personalizzata - ${weaknesses[0] || 'Italiano'}`,
-      level,
-      objectives: [`Migliorare: ${weaknesses.join(', ')}`],
-      activities: [
-        {
-          name: 'Riprova più tardi',
-          description: 'Si è verificato un errore nella generazione della lezione.',
-          duration: 'N/A',
-          materials: [],
-        },
-      ],
-      exercises: [],
-      homework: [],
-      notes: ['Errore nella generazione automatica. Riprova più tardi.'],
+    // Re-throw — the API route will handle the response
+    if (error instanceof AITimeoutError) {
+      throw error
     }
+    if (error instanceof AIResponseError) {
+      throw error
+    }
+
+    throw new AIResponseError('Errore nella generazione della lezione. Riprova più tardi.')
   }
 }

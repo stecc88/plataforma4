@@ -58,14 +58,14 @@ export async function POST(request: NextRequest) {
     // ─── Check account status ───────────────────────────────
     if (user.status === STATUSES.PENDING) {
       return NextResponse.json(
-        { error: 'Cuenta pendiente de aprobación' },
+        { error: 'Account in attesa di approvazione' },
         { status: 403 }
       )
     }
 
     if (user.status === STATUSES.SUSPENDED) {
       return NextResponse.json(
-        { error: 'Cuenta suspendida' },
+        { error: 'Account sospeso' },
         { status: 403 }
       )
     }

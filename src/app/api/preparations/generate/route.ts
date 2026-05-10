@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, type ClassPreparation } from '@/lib/db'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
-import { generateLessonPreparation, type ItalianLevel } from '@/lib/ai'
+import { generateLessonPreparation, type ItalianLevel, AITimeoutError } from '@/lib/ai'
 import { supabase } from '@/lib/supabase'
 
 /* ─── POST /api/preparations/generate — AI lesson generation ─── */
@@ -83,16 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Generate lesson with AI ────────────────────────────
-    let preparation
-    try {
-      preparation = await generateLessonPreparation(resolvedWeaknesses, preparationLevel)
-    } catch (aiError) {
-      console.error('[preparations/generate] AI generation failed:', aiError)
-      return NextResponse.json(
-        { error: 'Errore nella generazione AI. Riprova.' },
-        { status: 500 }
-      )
-    }
+    const preparation = await generateLessonPreparation(resolvedWeaknesses, preparationLevel)
 
     // ─── Save to database ───────────────────────────────────
     const savedPreparation = await db.classPreparation.create({
@@ -111,7 +102,16 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('[preparations/generate] Unexpected error:', error)
+    console.error('[preparations/generate] Error:', error)
+
+    // Provide specific error message for timeout
+    if (error instanceof AITimeoutError) {
+      return NextResponse.json(
+        { error: 'La generazione AI ha impiegato troppo tempo. Riprova.' },
+        { status: 504 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Errore nella generazione della preparazione' },
       { status: 500 }

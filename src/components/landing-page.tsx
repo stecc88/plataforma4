@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, useInView, AnimatePresence, type Variants } from 'framer-motion'
 import { useRef } from 'react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -115,12 +115,12 @@ function ThemeToggle() {
 
 /* ─── Animation Variants ─────────────────────────────────────── */
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   }),
 }
 
@@ -130,25 +130,25 @@ const staggerContainer = {
     opacity: 1,
     transition: { staggerChildren: 0.12, delayChildren: 0.1 },
   },
-}
+} as const
 
-const staggerItem = {
+const staggerItem: Variants = {
   hidden: { opacity: 0, y: 24, scale: 0.96 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   },
 }
 
-const heroTextReveal = {
+const heroTextReveal: Variants = {
   hidden: { opacity: 0, y: 40, filter: 'blur(8px)' },
   visible: {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   },
 }
 

@@ -599,3 +599,128 @@ Stage Summary:
 - Teacher dashboard enhanced with progress bars and last essay date per student
 - All admin APIs verified: GET /api/admin/users, POST /api/admin/approve-teacher, POST /api/admin/suspend-user
 - All components: teacher-dashboard, student-detail, teacher-notes, class-preparations, admin-dashboard, stats-charts verified
+
+---
+Task ID: 7
+Agent: footer-client-fix-agent
+Task: Fix sticky footer + 'use client' directives
+
+Work Log:
+- Verified landing page sticky footer: `min-h-screen flex flex-col` wrapper + `mt-auto` on footer — correct ✅
+- Verified app shell layout: `min-h-screen flex` horizontal layout with `flex-1` main area — correct ✅
+- Fixed root layout body: added `min-h-screen` to body className in `src/app/layout.tsx`
+  - Before: `className={`${inter.variable} antialiased bg-background text-foreground`}`
+  - After: `className={`${inter.variable} antialiased bg-background text-foreground min-h-screen`}`
+  - Ensures body fills viewport height for proper background and child layout inheritance
+- Checked ALL 13 component files for 'use client' directives — all already present ✅
+  - landing-page.tsx, app-shell.tsx, auth-form.tsx, student-dashboard.tsx, teacher-dashboard.tsx, student-detail.tsx, teacher-notes.tsx, class-preparations.tsx, admin-dashboard.tsx, stats-charts.tsx, essay-editor.tsx, essay-detail.tsx, profile-section.tsx
+- Checked non-component modules — correctly without 'use client' ✅
+  - api-fetch.ts (utility module, no JSX/hooks)
+  - teacher-state.ts (plain JS module, no JSX/hooks)
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- 1 edit made: added `min-h-screen` to body in root layout
+- Landing page sticky footer verified correct
+- App shell layout verified correct
+- All 13 component files already have proper 'use client' directives
+- 2 non-component modules correctly don't have 'use client'
+
+---
+Task ID: 2-3
+Agent: lint-fix-agent
+Task: Fix Dialog warnings and add `as const` to Framer Motion variant objects
+
+Work Log:
+- Task 1: Dialog warnings — Verified all DialogContent instances across 4 files:
+  * student-detail.tsx AddNoteDialog: already has DialogDescription ✅
+  * teacher-notes.tsx Create dialog: already has DialogDescription ✅
+  * teacher-notes.tsx Edit dialog: already has DialogDescription ✅
+  * teacher-notes.tsx Delete: uses AlertDialog with AlertDialogDescription ✅
+  * admin-dashboard.tsx Confirm dialog: already has DialogDescription ✅
+  * essay-detail.tsx SelfAssessmentDialog: already has DialogDescription ✅
+  * No changes needed — all DialogContent elements already have proper DialogDescription
+
+- Task 2: Added `as const` to all standalone Framer Motion animation variant objects:
+  * teacher-dashboard.tsx: containerVariants, itemVariants, cardHover — all 3 updated
+  * student-detail.tsx: containerVariants, itemVariants — both updated
+  * teacher-notes.tsx: containerVariants, itemVariants — both updated
+  * class-preparations.tsx: containerVariants, itemVariants — both updated
+  * admin-dashboard.tsx: containerVariants, itemVariants, cardHover — all 3 updated
+  * stats-charts.tsx: containerVariants, itemVariants — both updated
+  * student-dashboard.tsx: containerVariants, itemVariants, cardHover — all 3 updated
+  * profile-section.tsx: containerVariants, itemVariants — both updated
+  * landing-page.tsx: fadeUp, staggerContainer, staggerItem, heroTextReveal — all 4 updated
+  * essay-detail.tsx: skipped — uses inline animation props via FadeIn wrapper, no standalone variant objects
+- Total: 20 variant objects across 9 files updated with `as const`
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- All Dialog accessibility warnings verified — all DialogContent elements already had DialogDescription
+- All 20 standalone Framer Motion variant objects updated with `as const` across 9 component files
+- Zero lint errors, dev server compiling correctly
+
+---
+Task ID: 4-5-6
+Agent: type-safety-error-handling-agent
+Task: Fix Record<> dynamic access, verify API error handling, and improve AI correction robustness
+
+Work Log:
+
+### Task 1: Fix Record<> dynamic access with proper type assertions
+
+- Reviewed all 4 component files for dynamic Record<string, ...> access patterns:
+  * student-detail.tsx: ERROR_LABELS[type] and ERROR_COLORS[type] — both Record<string, ...> with string keys, no implicit any issues
+  * stats-charts.tsx: **Found and fixed a BUG** in lineData useMemo — `MONTH_LABELS[String(count)]` was using `count` (number of essays in a month) as the key instead of the month number. The key format is `"2024-3"` (year-month), so the month number should be extracted from the key. Fixed by destructuring the key and extracting month via `key.split('-')[1]`
+  * class-preparations.tsx: errorTypeCounts[type] and errorTypeLabels[type] — all Record<string, ...> with string keys, no issues
+  * profile-section.tsx: labels[lower] in getErrorTypeLabel — Record<string, string> with string key, no issues
+- Other Record<> accesses (ERROR_TYPE_LABELS, ERROR_COLORS, categoryColors) verified — all properly typed, no implicit any
+
+### Task 2: Verify ALL API routes have proper error handling
+
+- Reviewed all 16 API route files (20 endpoints total):
+  * auth/register ✅ — try/catch, console.error, JSON 500, no stack traces
+  * auth/login ✅ — try/catch, console.error, JSON 500, no stack traces — **Fixed Spanish error messages** ('Cuenta pendiente de aprobación' → 'Account in attesa di approvazione', 'Cuenta suspendida' → 'Account sospeso')
+  * auth/me ✅ — try/catch, console.error, JSON 500, no stack traces
+  * essays GET/POST ✅ — try/catch, console.error, JSON 500, no stack traces
+  * essays/[id] GET ✅ — try/catch, console.error, JSON 500, no stack traces
+  * essays/[id]/correct ✅ — **Fixed Spanish error messages** ('Error en la corrección AI. Intenta de nuevo.' → 'Errore nella correzione AI. Riprova.'), **added AITimeoutError handling** with 504 status
+  * essays/[id]/self-assess ✅ — try/catch, console.error, JSON 500, no stack traces
+  * stats ✅ — try/catch, console.error, JSON 500, no stack traces
+  * notes GET/POST ✅ — try/catch, console.error, JSON 500, no stack traces
+  * notes/[id] PUT/DELETE ✅ — try/catch, console.error, JSON 500, no stack traces
+  * preparations GET ✅ — try/catch, console.error, JSON 500, no stack traces
+  * preparations/generate ✅ — **added AITimeoutError handling** with 504 status
+  * admin/users ✅ — try/catch, console.error, JSON 500, no stack traces
+  * admin/approve-teacher ✅ — try/catch, console.error, JSON 500, no stack traces
+  * admin/suspend-user ✅ — try/catch, console.error, JSON 500, no stack traces
+  * generate-teacher-code ✅ — try/catch, console.error, JSON 500, no stack traces
+  * enrollments ✅ — try/catch, console.error, JSON 500, no stack traces
+- All routes verified: try/catch ✅, JSON error responses ✅, no stack traces exposed ✅, console.error for debugging ✅
+
+### Task 3: Verify AI correction error handling
+
+- Rewrote src/lib/ai.ts with significant improvements:
+  * **Added custom error classes**: AITimeoutError and AIResponseError for typed error handling
+  * **Added timeout mechanism**: withTimeout() helper using Promise.race pattern, 60-second default timeout for AI calls
+  * **Changed error handling strategy**: correctEssay() and generateLessonPreparation() now throw errors on failure instead of returning fallback objects. Previously, AI failures returned a fake correction with score=0, which was saved as CORRECTED — misleading the student
+  * **Added extractJSON() helper**: DRY refactoring of JSON markdown extraction logic (used by both functions)
+  * **Improved error logging**: console.error now logs error.message instead of full error object (avoids accidental stack trace exposure)
+  * **Added structured validation**: Separate JSON parse try/catch with AIResponseError for invalid JSON
+  * **Errors re-thrown to API routes**: Routes now receive typed errors and can provide specific responses (504 for timeout, 500 for other errors)
+- Updated API routes to handle new error types:
+  * essays/[id]/correct: imports AITimeoutError, returns 504 with Italian message for timeout, 500 for other errors
+  * preparations/generate: imports AITimeoutError, returns 504 with Italian message for timeout, 500 for other errors
+  * Both routes simplified: removed redundant inner try/catch for AI calls (errors now propagate naturally)
+- Lint passes with zero errors
+- Dev server compiles and serves correctly
+
+Stage Summary:
+- Fixed critical bug in stats-charts.tsx: month labels were using essay count instead of month number
+- Fixed Spanish error messages in auth/login and essays/[id]/correct routes (replaced with Italian)
+- Rewrote ai.ts with timeout mechanism (60s), custom error classes (AITimeoutError, AIResponseError), and throw-instead-of-fallback strategy
+- All 16 API route files verified for proper error handling (try/catch, JSON responses, no stack traces, console.error)
+- AI timeout errors now return HTTP 504 with specific Italian messages
+- Zero lint errors, dev server compiling correctly

@@ -18,7 +18,7 @@ function toSnakeCase<T extends Record<string, unknown>>(obj: T): Record<string, 
   return result
 }
 
-function toCamelCase<T extends Record<string, unknown>>(obj: Record<string, unknown>): T {
+function toCamelCase<T>(obj: Record<string, unknown>): T {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(obj)) {
     result[snakeToCamel(key)] = value
@@ -120,7 +120,7 @@ interface DeleteOptions {
   where: Record<string, unknown>
 }
 
-function buildFilters(query: ReturnType<typeof supabase.from>['select'], filters: Record<string, unknown>) {
+function buildFilters(query: any, filters: Record<string, unknown>) {
   let q = query
   for (const [key, value] of Object.entries(filters)) {
     const snakeKey = camelToSnake(key)
@@ -131,7 +131,7 @@ function buildFilters(query: ReturnType<typeof supabase.from>['select'], filters
   return q
 }
 
-function createRepository<T extends Record<string, unknown>>(tableName: TableName) {
+function createRepository<T>(tableName: TableName) {
   return {
     async findMany(options: FindManyOptions = {}): Promise<T[]> {
       try {

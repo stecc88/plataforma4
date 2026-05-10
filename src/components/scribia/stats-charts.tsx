@@ -74,7 +74,7 @@ const containerVariants = {
     opacity: 1,
     transition: { staggerChildren: 0.12, delayChildren: 0.05 },
   },
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -83,7 +83,7 @@ const itemVariants = {
     y: 0,
     transition: { duration: 0.5, ease: 'easeOut' },
   },
-}
+} as const
 
 /* ─── Constants ──────────────────────────────────────────────── */
 
@@ -313,10 +313,14 @@ export function StatsCharts({ essays, stats }: { essays: EssayData[]; stats: Sta
 
     return Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, { total, count }]) => ({
-        month: MONTH_LABELS[String(count)] || `${count}`,
-        score: Math.round(total / count),
-      }))
+      .map(([key, { total, count }]) => {
+        // Extract month number from key (format: "2024-3")
+        const monthNum = key.split('-')[1]
+        return {
+          month: MONTH_LABELS[monthNum] || monthNum,
+          score: Math.round(total / count),
+        }
+      })
   }, [correctedEssays])
 
   // ─── Bar Chart Data: Category Scores ──────────────────────

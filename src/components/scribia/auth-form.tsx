@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppStore } from '@/store/app-store'
+import { useAppStore, type AppUser } from '@/store/app-store'
 import { apiFetchPublic } from './api-fetch'
 import { Button } from '@/components/ui/button'
 import {
@@ -91,7 +91,7 @@ export function AuthForm({ initialTab = 'login', onSuccess }: AuthFormProps) {
 
     setIsLoading(true)
     try {
-      const data = await apiFetchPublic('/api/auth/login', {
+      const data = await apiFetchPublic<{ user: AppUser; token: string }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       })
@@ -111,7 +111,7 @@ export function AuthForm({ initialTab = 'login', onSuccess }: AuthFormProps) {
 
     setIsLoading(true)
     try {
-      const data = await apiFetchPublic('/api/auth/register', {
+      const data = await apiFetchPublic<{ user: AppUser; token: string }>('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
