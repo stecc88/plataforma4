@@ -80,3 +80,45 @@ Stage Summary:
 - AI integration uses z-ai-web-dev-sdk (not @google/generative-ai)
 - SQL schema ready for Supabase SQL Editor
 - 5 tables: users, essays, enrollments, teacher_notes, class_preparations
+
+---
+Task ID: 3
+Agent: main
+Task: Create authentication API routes
+
+Work Log:
+- Created POST /api/auth/register — user registration:
+  - Input validation: email, password (min 6), name (min 2), role
+  - Email uniqueness check (409 if exists)
+  - ADMIN: only allowed if no admin exists yet (403 if one exists)
+  - TEACHER: status=PENDING (needs admin approval), auto-generates 6-char uppercase teacher_code
+  - STUDENT with teacherCode: auto-creates enrollment
+  - Password hashing with bcryptjs (12 salt rounds)
+  - Returns {token, user} (user without password_hash)
+- Created POST /api/auth/login — user login:
+  - Email + password verification
+  - PENDING status → 403 error
+  - SUSPENDED status → 403 error
+  - Returns {token, user} (user without password_hash)
+- Created GET /api/auth/me — get current user:
+  - Requires Authorization: Bearer <token>
+  - Returns {user} (without password_hash)
+- Created POST /api/generate-teacher-code — admin-only:
+  - ADMIN role required (403 otherwise)
+  - Generates unique 6-char uppercase alphanumeric code
+  - Collision detection with retry loop
+  - Returns {teacherCode}
+- Created GET /api/enrollments — role-based listing:
+  - STUDENT sees their enrollments
+  - TEACHER sees their students
+  - ADMIN sees all
+  - Ordered by enrolledAt desc
+- All routes use NextRequest/NextResponse, try/catch, input validation, db wrapper, auth helpers
+- Lint passes with zero errors
+- Committed: feat: add authentication APIs
+
+Stage Summary:
+- 5 API routes created with full error handling and validation
+- Authentication flow: register → login → me
+- Role-based access control on all endpoints
+- All responses sanitized (no password_hash leaked)
