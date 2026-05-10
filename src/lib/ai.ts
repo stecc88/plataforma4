@@ -222,27 +222,36 @@ async function callGeminiREST(systemPrompt: string, userPrompt: string): Promise
 let zaiInstance: InstanceType<typeof import('z-ai-web-dev-sdk').default> | null = null
 
 async function callZAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  // Dynamic import to avoid build errors if config file doesn't exist
-  const ZAI = (await import('z-ai-web-dev-sdk')).default
+  // This fallback only works locally where .z-ai-config exists.
+  // On Vercel/production, it will gracefully fail because no config file exists.
+  try {
+    const ZAI = (await import('z-ai-web-dev-sdk')).default
 
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
+    if (!zaiInstance) {
+      zaiInstance = await ZAI.create()
+    }
+
+    const completion = await zaiInstance.chat.completions.create({
+      messages: [
+        { role: 'assistant', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      thinking: { type: 'disabled' },
+    })
+
+    const content = completion.choices?.[0]?.message?.content
+    if (!content) {
+      throw new AIResponseError('Nessuna risposta dal modello AI (Z-AI fallback)')
+    }
+
+    return content
+  } catch (error) {
+    // Wrap ALL errors as AIResponseError so they're handled consistently
+    if (error instanceof AIResponseError) throw error
+    const msg = error instanceof Error ? error.message : String(error)
+    console.warn('[AI] Z-AI SDK unavailable:', msg.substring(0, 200))
+    throw new AIResponseError(`Z-AI SDK non disponibile: ${msg.substring(0, 150)}`)
   }
-
-  const completion = await zaiInstance.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-
-  const content = completion.choices?.[0]?.message?.content
-  if (!content) {
-    throw new AIResponseError('Nessuna risposta dal modello AI (Z-AI fallback)')
-  }
-
-  return content
 }
 
 /* ─── Unified AI Call with Fallback ──────────────────────────── */
