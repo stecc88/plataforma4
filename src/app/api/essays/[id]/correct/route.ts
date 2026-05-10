@@ -15,6 +15,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('[Correct] Starting correction request')
+
     const auth = await getAuthFromRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Non autenticato' }, { status: 401 })
@@ -29,6 +31,8 @@ export async function POST(
     }
 
     const { id } = await params
+    console.log('[Correct] Essay ID:', id, 'User:', auth.userId)
+
     const essay = await db.essay.findUnique({ where: { id } })
 
     if (!essay) {
@@ -71,6 +75,8 @@ export async function POST(
       // No body or invalid JSON, use defaults
     }
 
+    console.log('[Correct] Params:', { level, certification, textType, textLength: essay.content.length })
+
     // ─── Call AI correction ─────────────────────────────────
     const correction = await correctWriting({
       text: essay.content,
@@ -81,6 +87,7 @@ export async function POST(
 
     // Verify we got a valid correction (safety net)
     if (!correction || typeof correction.score !== 'number') {
+      console.error('[Correct] Invalid correction result:', correction)
       return NextResponse.json(
         { error: 'Errore nella correzione AI. Riprova.' },
         { status: 500 }
@@ -100,11 +107,16 @@ export async function POST(
       },
     })
 
+    console.log('[Correct] Successfully corrected essay', id, 'Score:', correction.score)
+
     return NextResponse.json({
       essay: updatedEssay,
       correction,
     })
   } catch (error) {
+    console.error('[Correct] Error:', error instanceof Error ? error.message : error)
+    console.error('[Correct] Stack:', error instanceof Error ? error.stack : 'N/A')
+
     // Provide specific error messages
     if (error instanceof AITimeoutError) {
       return NextResponse.json(
@@ -120,14 +132,14 @@ export async function POST(
       )
     }
 
-    // Return detailed error for debugging (remove in production)
+    // Return detailed error for debugging
     const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto'
-    const errorDetails = error instanceof Error && error.cause ? String(error.cause) : ''
+    const errorStack = error instanceof Error ? error.stack : ''
 
     return NextResponse.json(
       {
         error: `Errore nella correzione AI: ${errorMsg}`,
-        details: errorDetails || undefined,
+        stack: errorStack || undefined,
       },
       { status: 500 }
     )

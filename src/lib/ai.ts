@@ -35,7 +35,7 @@ export class AIResponseError extends Error {
 
 /* ─── Timeout Helper ─────────────────────────────────────────── */
 
-const AI_TIMEOUT_MS = 90_000 // 90 seconds for complex correction
+const AI_TIMEOUT_MS = 120_000 // 2 minutes for complex correction
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number = AI_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -85,10 +85,25 @@ export interface LessonPreparation {
 
 function extractJSON(content: string): string {
   let jsonStr = content.trim()
+
+  // Remove markdown code fences if present
   const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (jsonMatch) {
     jsonStr = jsonMatch[1].trim()
   }
+
+  // If the content starts with { and ends with }, assume it's already pure JSON
+  if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
+    return jsonStr
+  }
+
+  // Try to find the first { and last } as a fallback
+  const firstBrace = jsonStr.indexOf('{')
+  const lastBrace = jsonStr.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1)
+  }
+
   return jsonStr
 }
 
@@ -323,6 +338,8 @@ Testo da correggere:
 
 ${text}`
 
+    console.log('[AI] Sending correction request for level:', level, 'certification:', certification)
+
     const completion = await withTimeout(
       zai.chat.completions.create({
         messages: [
@@ -336,15 +353,21 @@ ${text}`
 
     const content = completion.choices?.[0]?.message?.content
     if (!content) {
+      console.error('[AI] No content in response:', JSON.stringify(completion).substring(0, 500))
       throw new AIResponseError('Nessuna risposta dal modello AI')
     }
+
+    console.log('[AI] Got response, length:', content.length, 'first 100 chars:', content.substring(0, 100))
 
     // Extract and parse JSON
     const jsonStr = extractJSON(content)
     let parsed: unknown
     try {
       parsed = JSON.parse(jsonStr)
-    } catch {
+    } catch (parseError) {
+      console.error('[AI] JSON parse failed. Raw content (first 300):', content.substring(0, 300))
+      console.error('[AI] Extracted JSON (first 300):', jsonStr.substring(0, 300))
+      console.error('[AI] Parse error:', parseError)
       throw new AIResponseError('Risposta AI non è un JSON valido')
     }
 
@@ -352,6 +375,7 @@ ${text}`
 
     // Validate essential fields
     if (typeof p.score !== 'number' || !p.correctedText) {
+      console.error('[AI] Invalid structure. score:', typeof p.score, 'correctedText:', !!p.correctedText)
       throw new AIResponseError('Struttura della risposta AI non valida')
     }
 
@@ -407,8 +431,11 @@ ${text}`
       finalNote: String(p.finalNote || ''),
     }
 
+    console.log('[AI] Correction complete. Score:', correction.score, 'Errors:', correction.errors.length)
+
     return correction
   } catch (error) {
+    console.error('[AI] Correction error:', error instanceof Error ? error.message : error)
     // Re-throw with a safe message — the API route will handle the response
     if (error instanceof AITimeoutError) {
       throw error
