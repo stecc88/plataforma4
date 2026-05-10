@@ -98,8 +98,13 @@ function extractJSON(content: string): string {
 /* ─── Gemini REST API (Primary — works on Vercel) ───────────── */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
+
+// Model priority: try Gemini 2.5 Flash first, fall back to 2.0 Flash
+const GEMINI_MODELS = [
+  process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  'gemini-2.0-flash',
+]
 
 interface GeminiResponse {
   candidates?: Array<{
@@ -118,18 +123,17 @@ interface GeminiResponse {
 
 /**
  * Call the Gemini REST API directly via fetch().
- * This works in ALL environments — Vercel, local dev, Docker, etc.
+ * Works in ALL environments — Vercel, local dev, Docker, etc.
  * No SDK dependency, no config file needed.
  * Just needs GEMINI_API_KEY environment variable.
+ * Tries multiple models in priority order.
  */
 async function callGeminiREST(systemPrompt: string, userPrompt: string): Promise<string> {
   if (!GEMINI_API_KEY) {
     throw new AIResponseError('GEMINI_API_KEY non configurata. Imposta la variabile d\'ambiente.')
   }
 
-  const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
-
-  const body = {
+  const requestBody = {
     system_instruction: {
       parts: [{ text: systemPrompt }],
     },
@@ -146,47 +150,71 @@ async function callGeminiREST(systemPrompt: string, userPrompt: string): Promise
     },
   }
 
-  console.log('[AI] Calling Gemini REST API, model:', GEMINI_MODEL)
+  // Try each model in priority order
+  for (const model of GEMINI_MODELS) {
+    const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${GEMINI_API_KEY}`
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error')
-    console.error('[AI] Gemini API error:', response.status, errorText.substring(0, 500))
+    console.log('[AI] Calling Gemini REST API, model:', model)
 
     try {
-      const errorJson = JSON.parse(errorText)
-      const errorMessage = errorJson?.error?.message || errorText
-      throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorMessage}`)
-    } catch (e) {
-      if (e instanceof AIResponseError) throw e
-      if (errorText.includes('User location is not supported')) {
-        throw new AIResponseError('API Gemini non disponibile in questa posizione.')
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        console.warn('[AI] Gemini API error for model', model, ':', response.status, errorText.substring(0, 300))
+
+        // Don't retry on these errors — try next model
+        if (errorText.includes('User location is not supported')) {
+          console.warn('[AI] Model', model, 'geo-blocked, trying next...')
+          continue
+        }
+        if (response.status === 404) {
+          console.warn('[AI] Model', model, 'not found, trying next...')
+          continue
+        }
+        if (response.status === 429) {
+          console.warn('[AI] Model', model, 'rate limited, trying next...')
+          continue
+        }
+
+        // For other errors, parse and throw
+        try {
+          const errorJson = JSON.parse(errorText)
+          throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorJson?.error?.message || errorText.substring(0, 200)}`)
+        } catch (e) {
+          if (e instanceof AIResponseError) throw e
+          throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorText.substring(0, 200)}`)
+        }
       }
-      throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorText.substring(0, 200)}`)
+
+      const data: GeminiResponse = await response.json()
+
+      if (data.error) {
+        console.error('[AI] Gemini API returned error:', data.error)
+        throw new AIResponseError(`Errore Gemini: ${data.error.message || 'Errore sconosciuto'}`)
+      }
+
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text
+      if (!content) {
+        console.error('[AI] No content in Gemini response:', JSON.stringify(data).substring(0, 500))
+        throw new AIResponseError('Nessuna risposta dal modello AI')
+      }
+
+      console.log('[AI] Successfully used Gemini REST API, model:', model)
+      return content
+    } catch (error) {
+      if (error instanceof AIResponseError) throw error
+      console.warn('[AI] Unexpected error for model', model, ':', error)
+      continue
     }
   }
 
-  const data: GeminiResponse = await response.json()
-
-  if (data.error) {
-    console.error('[AI] Gemini API returned error:', data.error)
-    throw new AIResponseError(`Errore Gemini: ${data.error.message || 'Errore sconosciuto'}`)
-  }
-
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!content) {
-    console.error('[AI] No content in Gemini response:', JSON.stringify(data).substring(0, 500))
-    throw new AIResponseError('Nessuna risposta dal modello AI')
-  }
-
-  return content
+  // All models failed
+  throw new AIResponseError('Nessun modello Gemini disponibile. Provati: ' + GEMINI_MODELS.join(', '))
 }
 
 /* ─── Z-AI SDK Fallback (works locally through proxy) ────────── */
@@ -220,19 +248,19 @@ async function callZAI(systemPrompt: string, userPrompt: string): Promise<string
 /* ─── Unified AI Call with Fallback ──────────────────────────── */
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  // Strategy: Try Gemini REST API first (works on Vercel production).
-  // If that fails (geo-restriction, quota, etc.), try Z-AI SDK fallback (works locally through proxy).
+  // Strategy:
+  // 1. Try Gemini REST API with model fallback (works on Vercel US/EU servers)
+  // 2. If all Gemini models fail (geo-restriction, quota, etc.), try Z-AI SDK (works locally through proxy)
   const errors: string[] = []
 
   // 1. Try Gemini REST API
   if (GEMINI_API_KEY) {
     try {
       const content = await callGeminiREST(systemPrompt, userPrompt)
-      console.log('[AI] Successfully used Gemini REST API')
       return content
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      console.warn('[AI] Gemini REST API failed:', msg.substring(0, 200))
+      console.warn('[AI] All Gemini REST API models failed:', msg.substring(0, 200))
       errors.push(`Gemini: ${msg.substring(0, 100)}`)
     }
   } else {
