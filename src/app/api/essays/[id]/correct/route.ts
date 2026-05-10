@@ -133,17 +133,8 @@ export async function POST(
       )
     }
 
-    // Return detailed error for debugging
-    const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto'
-    const errorStack = error instanceof Error ? error.stack : ''
-    const errorType = error?.constructor?.name || 'Unknown'
-
     return NextResponse.json(
-      {
-        error: `Errore nella correzione AI: ${errorMsg}`,
-        errorType,
-        stack: errorStack || undefined,
-      },
+      { error: 'Errore interno del server. Riprova più tardi.' },
       { status: 500 }
     )
   }

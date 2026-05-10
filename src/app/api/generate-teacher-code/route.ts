@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, type User } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
-
-/* ─── Generate unique 6-char uppercase alphanumeric code ─────── */
-
-function generateTeacherCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return code
-}
+import { generateTeacherCode } from '@/lib/utils-user'
 
 /* ─── POST /api/generate-teacher-code ────────────────────────── */
 

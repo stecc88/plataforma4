@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, type User } from '@/lib/db'
+import { db } from '@/lib/db'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { verifyPassword, signToken, STATUSES } from '@/lib/auth'
-
-/* ─── Sanitize user (remove password) ────────────────────────── */
-
-function sanitizeUser(user: User) {
-  const { passwordHash: _, ...safe } = user
-  return safe
-}
+import { sanitizeUser } from '@/lib/utils-user'
 
 /* ─── POST /api/auth/login ───────────────────────────────────── */
 

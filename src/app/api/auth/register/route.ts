@@ -2,24 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, type User, type UserRole, type UserStatus } from '@/lib/db'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { hashPassword, signToken, ROLES, STATUSES } from '@/lib/auth'
-
-/* ─── Generate unique teacher code ───────────────────────────── */
-
-function generateTeacherCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return code
-}
-
-/* ─── Sanitize user (remove password) ────────────────────────── */
-
-function sanitizeUser(user: User) {
-  const { passwordHash: _, ...safe } = user
-  return safe
-}
+import { sanitizeUser, generateTeacherCode } from '@/lib/utils-user'
 
 /* ─── POST /api/auth/register ────────────────────────────────── */
 
@@ -64,11 +47,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validRoles: UserRole[] = [ROLES.STUDENT, ROLES.TEACHER, ROLES.ADMIN]
+    // Public registration only allows STUDENT and TEACHER roles.
+    // ADMIN accounts must be created through a separate admin endpoint or directly in the database.
+    const validRoles: UserRole[] = [ROLES.STUDENT, ROLES.TEACHER]
     if (!role || !validRoles.includes(role as UserRole)) {
       return NextResponse.json(
-        { error: 'Ruolo non valido. Usa: STUDENT, TEACHER, o ADMIN' },
+        { error: 'Ruolo non valido. Usa: STUDENT o TEACHER' },
         { status: 400 }
+      )
+    }
+
+    // ─── Explicitly block ADMIN role from public registration ──
+    if (role === ROLES.ADMIN) {
+      return NextResponse.json(
+        { error: 'La registrazione come ADMIN non è consentita.' },
+        { status: 403 }
       )
     }
 
@@ -79,17 +72,6 @@ export async function POST(request: NextRequest) {
         { error: 'Email già registrata' },
         { status: 409 }
       )
-    }
-
-    // ─── ADMIN: only allow if no admin exists yet ───────────
-    if (role === ROLES.ADMIN) {
-      const adminCount = await db.user.count({ where: { role: ROLES.ADMIN } })
-      if (adminCount > 0) {
-        return NextResponse.json(
-          { error: 'Un amministratore esiste già. Contatta l\'admin.' },
-          { status: 403 }
-        )
-      }
     }
 
     // ─── Hash password ──────────────────────────────────────

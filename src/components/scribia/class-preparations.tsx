@@ -30,29 +30,12 @@ import {
   Lightbulb,
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-/* ─── Animation Variants ─────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
-} as const
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-} as const
+import type { CorrectionError as CorrectionErrorBase } from '@/lib/ai-correction.types'
 
 /* ─── AI Correction Types (for weakness extraction) ──────────── */
 
-interface CorrectionError {
-  type: string
-  original: string
-  correction: string
-  explanation: string
+type CorrectionError = Pick<CorrectionErrorBase, 'type' | 'original' | 'correction'> & {
+  explanation?: string
   position?: number
 }
 

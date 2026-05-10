@@ -35,36 +35,12 @@ import {
   Star,
   Award,
 } from 'lucide-react'
-
-/* ─── Animation Variants ──────────────────────────────────────── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.05,
-    },
-  },
-} as const
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: 'easeOut' },
-  },
-} as const
+import type { CorrectionError as CorrectionErrorBase } from '@/lib/ai-correction.types'
 
 /* ─── Correction Data Types ────────────────────────────────────── */
 
-interface CorrectionError {
-  type: string
-  original: string
-  correction: string
-  explanation: string
+type CorrectionError = Pick<CorrectionErrorBase, 'type' | 'original' | 'correction'> & {
+  explanation?: string
   position?: number
 }
 

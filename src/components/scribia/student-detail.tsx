@@ -49,15 +49,14 @@ import {
   Target,
   BarChart3,
 } from 'lucide-react'
+import type { CorrectionError as CorrectionErrorBase, ErrorType } from '@/lib/ai-correction.types'
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
-interface CorrectionError {
-  type: 'grammar' | 'spelling' | 'punctuation' | 'syntax' | 'vocabulary' | 'style'
-  original: string
-  correction: string
-  explanation: string
-  position: number
+type CorrectionError = Pick<CorrectionErrorBase, 'original' | 'correction'> & {
+  type: ErrorType | string
+  explanation?: string
+  position?: number
 }
 
 interface AICorrection {

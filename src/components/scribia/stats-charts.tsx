@@ -35,6 +35,7 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
 } from 'lucide-react'
+import type { CorrectionError as CorrectionErrorBase } from '@/lib/ai-correction.types'
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -59,11 +60,8 @@ interface StatsData {
   totalTeachers?: number
 }
 
-interface CorrectionError {
-  type: string
-  original: string
-  correction: string
-  explanation: string
+type CorrectionError = Pick<CorrectionErrorBase, 'type' | 'original' | 'correction'> & {
+  explanation?: string
 }
 
 /* ─── Animation Variants ─────────────────────────────────────── */

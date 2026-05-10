@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, type User } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getAuthFromRequest } from '@/lib/auth'
-
-/* ─── Sanitize user (remove password) ────────────────────────── */
-
-function sanitizeUser(user: User) {
-  const { passwordHash: _, ...safe } = user
-  return safe
-}
+import { sanitizeUser } from '@/lib/utils-user'
 
 /* ─── GET /api/auth/me ───────────────────────────────────────── */
 

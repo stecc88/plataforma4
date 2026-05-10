@@ -70,9 +70,6 @@ export async function GET(request: NextRequest) {
     // Enrich with student names
     if (essays.length > 0) {
       const uniqueStudentIds = [...new Set(essays.map((e) => e.studentId))]
-      const students = await db.user.findMany({
-        where: { id: uniqueStudentIds[0] }, // fetch one by one would be slow, use supabase
-      })
 
       // Use supabase for batch user fetch
       const { data: usersData } = await supabase

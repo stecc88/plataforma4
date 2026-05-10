@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, type ClassPreparation } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
 
 /* ─── GET /api/preparations — List class preparations ────────── */
