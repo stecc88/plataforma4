@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -32,7 +31,6 @@ import {
   BookOpen,
   Brain,
   GraduationCap,
-  Check,
   ArrowRight,
   Sun,
   Moon,
@@ -45,8 +43,6 @@ import {
   BarChart3,
   Languages,
   Lightbulb,
-  Crown,
-  Globe,
   ChevronRight,
 } from 'lucide-react'
 
@@ -275,61 +271,6 @@ const steps = [
   },
 ]
 
-/* ─── Plans Data ─────────────────────────────────────────────── */
-
-const plans = [
-  {
-    name: 'Piano Gratuito',
-    price: '€0',
-    period: '/mese',
-    description: 'Perfetto per iniziare a scoprire ScribIA.',
-    icon: Feather,
-    features: [
-      '5.000 parole al mese',
-      'Correzione grammaticale',
-      '3 suggerimenti al giorno',
-      'Supporto email',
-    ],
-    cta: 'Inizia Gratis',
-    popular: false,
-  },
-  {
-    name: 'Piano Pro',
-    price: '€9,99',
-    period: '/mese',
-    description: 'Per scrittori e professionisti che vogliono di più.',
-    icon: Crown,
-    features: [
-      '100.000 parole al mese',
-      'Tutte le funzionalità',
-      'Suggerimenti illimitati',
-      'Analisi dello stile avanzata',
-      'Traduzione multilingue',
-      'Supporto prioritario',
-    ],
-    cta: 'Prova Pro',
-    popular: true,
-  },
-  {
-    name: 'Piano Enterprise',
-    price: '€29,99',
-    period: '/mese',
-    description: 'Per team e aziende con esigenze avanzate.',
-    icon: Globe,
-    features: [
-      'Parole illimitate',
-      'Tutte le funzionalità Pro',
-      'API personalizzata',
-      'Collaborazione team',
-      'Analisi avanzata',
-      'Account manager dedicato',
-      'SLA garantito',
-    ],
-    cta: 'Contattaci',
-    popular: false,
-  },
-]
-
 /* ─── Props ──────────────────────────────────────────────────── */
 
 interface LandingPageProps {
@@ -344,7 +285,6 @@ export function LandingPage({ onOpenAuth }: LandingPageProps) {
   const navLinks = [
     { label: 'Funzionalità', href: '#funzionalita' },
     { label: 'Come Funziona', href: '#come-funziona' },
-    { label: 'Prezzi', href: '#prezzi' },
   ]
 
   return (
@@ -734,84 +674,6 @@ export function LandingPage({ onOpenAuth }: LandingPageProps) {
             </div>
           </div>
         </AnimatedSection>
-
-        {/* ─── Pricing ────────────────────────────────────────────── */}
-        <AnimatedSection id="prezzi" className="py-20 md:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <motion.div variants={fadeUp} custom={0} className="text-center mb-16">
-              <Badge variant="secondary" className="mb-4 text-xs font-medium tracking-wide uppercase">
-                Prezzi
-              </Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                Un piano per ogni{' '}
-                <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent dark:from-emerald-400 dark:to-teal-400">
-                  esigenza
-                </span>
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-                Inizia gratuitamente e scala quando sei pronto.
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
-              {plans.map((plan) => {
-                const Icon = plan.icon
-                return (
-                  <motion.div key={plan.name} variants={staggerItem}>
-                    <Card className={`group relative h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-                      plan.popular ? 'border-2 border-amber-500/60 shadow-lg shadow-amber-500/10 bg-card' : 'border-border/60 bg-card/80 backdrop-blur-sm'
-                    }`}>
-                      {plan.popular && (
-                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                          <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-4 shadow-md">
-                            Più Popolare
-                          </Badge>
-                        </div>
-                      )}
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`flex size-10 items-center justify-center rounded-lg ${plan.popular ? 'bg-amber-500/10' : 'bg-emerald-500/10'}`}>
-                            <Icon className={`size-5 ${plan.popular ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
-                          </div>
-                          <CardTitle className="text-xl">{plan.name}</CardTitle>
-                        </div>
-                        <CardDescription>{plan.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                        <div className="mb-6">
-                          <span className="text-4xl font-bold">{plan.price}</span>
-                          <span className="text-muted-foreground text-sm">{plan.period}</span>
-                        </div>
-                        <ul className="space-y-3">
-                          {plan.features.map((feature) => (
-                            <li key={feature} className="flex items-start gap-3">
-                              <Check className={`size-4 mt-0.5 shrink-0 ${plan.popular ? 'text-amber-500' : 'text-emerald-500'}`} />
-                              <span className="text-sm text-muted-foreground">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                      <CardFooter>
-                        <Button
-                          className={`w-full transition-all ${
-                            plan.popular
-                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md hover:shadow-lg'
-                              : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white shadow-md hover:shadow-lg'
-                          }`}
-                          size="lg"
-                          onClick={() => onOpenAuth('register')}
-                        >
-                          {plan.cta}
-                          <ArrowRight className="size-4 ml-2" />
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        </AnimatedSection>
       </main>
 
       {/* ─── Footer ──────────────────────────────────────────────── */}
@@ -832,7 +694,7 @@ export function LandingPage({ onOpenAuth }: LandingPageProps) {
               </p>
             </div>
             {[
-              { title: 'Prodotto', items: ['Funzionalità', 'Prezzi', 'API', 'Integrazioni'] },
+              { title: 'Prodotto', items: ['Funzionalità', 'API', 'Integrazioni'] },
               { title: 'Azienda', items: ['Chi Siamo', 'Blog', 'Carriere', 'Contatti'] },
               { title: 'Legale', items: ['Privacy', 'Termini', 'Cookie', 'GDPR'] },
             ].map((col) => (
