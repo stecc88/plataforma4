@@ -232,7 +232,6 @@ export function StudentDetail() {
       )
       setStudentEssays(data.essays || [])
     } catch (err) {
-      console.error('[student-detail] Failed to fetch essays:', err)
       toast.error('Errore nel caricamento dei saggi')
     } finally {
       setIsLoadingEssays(false)

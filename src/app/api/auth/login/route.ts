@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
       user: sanitizeUser(user),
     })
   } catch (error) {
-    console.error('[auth/login] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il login' },
       { status: 500 }

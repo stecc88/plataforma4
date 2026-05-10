@@ -267,7 +267,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await apiRequest('/api/essays', token)
       set({ essays: data.essays || [] })
     } catch (error) {
-      console.error('[store] fetchEssays failed:', error)
+      // silently handle error
     }
   },
 
@@ -293,7 +293,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       set({ students })
     } catch (error) {
-      console.error('[store] fetchStudents failed:', error)
+      // silently handle error
     }
   },
 
@@ -304,7 +304,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await apiRequest('/api/stats', token)
       set({ stats: data.stats || null })
     } catch (error) {
-      console.error('[store] fetchStats failed:', error)
+      // silently handle error
     }
   },
 
@@ -315,7 +315,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await apiRequest('/api/notes', token)
       set({ notes: data.notes || [] })
     } catch (error) {
-      console.error('[store] fetchNotes failed:', error)
+      // silently handle error
     }
   },
 
@@ -326,7 +326,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await apiRequest('/api/preparations', token)
       set({ preparations: data.preparations || [] })
     } catch (error) {
-      console.error('[store] fetchPreparations failed:', error)
+      // silently handle error
     }
   },
 

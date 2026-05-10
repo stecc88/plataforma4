@@ -206,7 +206,6 @@ export function EssayEditor() {
         setCurrentView('essay-detail')
       } catch (correctionError) {
         // AI correction failed — still save as draft
-        console.error('[EssayEditor] AI correction failed:', correctionError)
         toast.error("Errore nella correzione. Riprova.")
         setCurrentEssay(createdEssay)
         setCurrentView('dashboard')

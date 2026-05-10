@@ -70,6 +70,8 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_teacher_code ON users(teacher_code);
 CREATE INDEX IF NOT EXISTS idx_essays_student_id ON essays(student_id);
 CREATE INDEX IF NOT EXISTS idx_essays_status ON essays(status);
+CREATE INDEX IF NOT EXISTS idx_essays_submitted_at ON essays(submitted_at);
+CREATE INDEX IF NOT EXISTS idx_essays_corrected_at ON essays(corrected_at);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_teacher_id ON enrollments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_teacher_notes_teacher_id ON teacher_notes(teacher_id);
@@ -79,6 +81,10 @@ CREATE INDEX IF NOT EXISTS idx_class_preparations_teacher_id ON class_preparatio
 -- ═══════════════════════════════════════════════════════════════
 -- Row Level Security (RLS)
 -- ═══════════════════════════════════════════════════════════════
+-- NOTE: The backend API uses the service_role key which bypasses
+-- RLS entirely. These policies govern only the anon key access.
+-- Since the frontend never directly queries Supabase (all requests
+-- go through API routes with JWT auth), anon access is restricted.
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE essays ENABLE ROW LEVEL SECURITY;
@@ -86,7 +92,7 @@ ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teacher_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_preparations ENABLE ROW LEVEL SECURITY;
 
--- ─── Permissive policies for service_role (bypasses RLS anyway) ──
+-- ─── Policies for service_role (bypasses RLS anyway, explicit for clarity) ──
 
 CREATE POLICY "service_role_all_users" ON users
   FOR ALL TO service_role USING (true) WITH CHECK (true);
@@ -103,28 +109,19 @@ CREATE POLICY "service_role_all_teacher_notes" ON teacher_notes
 CREATE POLICY "service_role_all_class_preparations" ON class_preparations
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- ─── Policies for anon role ───────────────────────────────────
+-- ─── Policies for anon role (RESTRICTED — no direct DB access from frontend) ──
 
+-- Users: read-only (needed for teacher code lookups during registration)
 CREATE POLICY "anon_select_users" ON users
   FOR SELECT TO anon USING (true);
 
-CREATE POLICY "anon_all_essays" ON essays
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_enrollments" ON enrollments
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_teacher_notes" ON teacher_notes
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_class_preparations" ON class_preparations
-  FOR ALL TO anon USING (true) WITH CHECK (true);
+-- Essays, enrollments, notes, preparations: NO anon access
+-- All access goes through authenticated API routes using service_role
 
 -- ═══════════════════════════════════════════════════════════════
 -- Grants
 -- ═══════════════════════════════════════════════════════════════
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT SELECT ON users TO anon;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;

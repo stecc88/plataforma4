@@ -59,7 +59,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ notes: [] })
   } catch (error) {
-    console.error('[notes GET] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero delle note' },
       { status: 500 }
@@ -136,7 +135,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ note }, { status: 201 })
   } catch (error) {
-    console.error('[notes POST] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante la creazione della nota' },
       { status: 500 }

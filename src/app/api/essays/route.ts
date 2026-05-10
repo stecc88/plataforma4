@@ -94,7 +94,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ essays: essays.map((e) => ({ ...e, studentName: '' })) })
   } catch (error) {
-    console.error('[essays GET] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero dei temi' },
       { status: 500 }
@@ -152,7 +151,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ essay }, { status: 201 })
   } catch (error) {
-    console.error('[essays POST] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante la creazione del tema' },
       { status: 500 }

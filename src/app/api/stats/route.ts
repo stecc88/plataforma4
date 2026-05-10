@@ -148,7 +148,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[stats] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero delle statistiche' },
       { status: 500 }

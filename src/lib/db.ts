@@ -160,7 +160,6 @@ function createRepository<T>(tableName: TableName) {
         if (error) throw error
         return toCamelCaseArray<T>(data || [])
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.findMany:`, error)
         throw error
       }
     },
@@ -176,7 +175,6 @@ function createRepository<T>(tableName: TableName) {
         if (!data) return null
         return toCamelCase<T>(data)
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.findUnique:`, error)
         throw error
       }
     },
@@ -193,7 +191,6 @@ function createRepository<T>(tableName: TableName) {
         if (error) throw error
         return toCamelCase<T>(data)
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.create:`, error)
         throw error
       }
     },
@@ -213,7 +210,6 @@ function createRepository<T>(tableName: TableName) {
         }
         return toCamelCase<T>(data[0])
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.update:`, error)
         throw error
       }
     },
@@ -232,7 +228,6 @@ function createRepository<T>(tableName: TableName) {
         }
         return toCamelCase<T>(data[0])
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.delete:`, error)
         throw error
       }
     },
@@ -250,7 +245,6 @@ function createRepository<T>(tableName: TableName) {
         if (error) throw error
         return count || 0
       } catch (error) {
-        console.error(`[db] Error in ${tableName}.count:`, error)
         throw error
       }
     },

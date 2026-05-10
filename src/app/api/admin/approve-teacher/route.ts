@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError || !updatedUser) {
-      console.error('[admin/approve-teacher] Update error:', updateError)
       return NextResponse.json(
         { error: "Errore durante l'aggiornamento dell'utente" },
         { status: 500 }
@@ -133,7 +132,6 @@ export async function POST(request: NextRequest) {
       user: toCamelCase(updatedUser),
     })
   } catch (error) {
-    console.error('[admin/approve-teacher] Error:', error)
     return NextResponse.json(
       { error: "Errore durante l'approvazione del docente" },
       { status: 500 }

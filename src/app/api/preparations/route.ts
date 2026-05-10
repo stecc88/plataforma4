@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   } catch (error) {
-    console.error('[preparations GET] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero delle preparazioni' },
       { status: 500 }

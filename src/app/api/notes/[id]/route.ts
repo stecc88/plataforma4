@@ -57,7 +57,6 @@ export async function PUT(
 
     return NextResponse.json({ note: updated })
   } catch (error) {
-    console.error('[notes PUT] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante la modifica della nota' },
       { status: 500 }
@@ -108,7 +107,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[notes DELETE] Error:', error)
     return NextResponse.json(
       { error: "Errore durante l'eliminazione della nota" },
       { status: 500 }

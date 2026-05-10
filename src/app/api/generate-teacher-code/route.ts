@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
       teacherCode: code,
     })
   } catch (error) {
-    console.error('[generate-teacher-code] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante la generazione del codice' },
       { status: 500 }

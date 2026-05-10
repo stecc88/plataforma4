@@ -409,9 +409,6 @@ ${text}`
 
     return correction
   } catch (error) {
-    // Log for server-side debugging (never expose stack traces to client)
-    console.error('[ai] correctWriting error:', error instanceof Error ? error.message : error)
-
     // Re-throw with a safe message — the API route will handle the response
     if (error instanceof AITimeoutError) {
       throw error
@@ -498,9 +495,6 @@ Rispondi SOLO con il JSON, nessun altro testo.`
       notes: Array.isArray(p.notes) ? (p.notes as string[]) : [],
     }
   } catch (error) {
-    // Log for server-side debugging
-    console.error('[ai] generateLessonPreparation error:', error instanceof Error ? error.message : error)
-
     // Re-throw — the API route will handle the response
     if (error instanceof AITimeoutError) {
       throw error

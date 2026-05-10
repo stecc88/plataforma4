@@ -213,7 +213,6 @@ export function AdminDashboard() {
       setUsers(data.users || [])
     } catch (err) {
       toast.error('Errore nel caricamento degli utenti')
-      console.error('[admin] fetchUsers failed:', err)
     } finally {
       setUsersLoading(false)
     }
@@ -230,7 +229,6 @@ export function AdminDashboard() {
       setPendingTeachers(data.users || [])
     } catch (err) {
       toast.error('Errore nel caricamento dei docenti in attesa')
-      console.error('[admin] fetchPendingTeachers failed:', err)
     } finally {
       setPendingLoading(false)
     }
@@ -265,7 +263,6 @@ export function AdminDashboard() {
       fetchStats()
     } catch (err) {
       toast.error('Errore nella sospensione dell\'utente')
-      console.error('[admin] suspendUser failed:', err)
     } finally {
       setActionLoading(null)
     }
@@ -284,7 +281,6 @@ export function AdminDashboard() {
       fetchStats()
     } catch (err) {
       toast.error('Errore nell\'attivazione dell\'utente')
-      console.error('[admin] activateUser failed:', err)
     } finally {
       setActionLoading(null)
     }
@@ -303,7 +299,6 @@ export function AdminDashboard() {
       fetchStats()
     } catch (err) {
       toast.error('Errore nell\'approvazione del docente')
-      console.error('[admin] approveTeacher failed:', err)
     } finally {
       setActionLoading(null)
     }
@@ -347,7 +342,6 @@ export function AdminDashboard() {
           ? 'Errore nell\'approvazione del docente'
           : 'Errore nel rifiuto del docente'
       )
-      console.error('[admin] confirmAction failed:', err)
     } finally {
       setConfirmActionLoading(false)
       closeConfirmDialog()

@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('[admin/users] Supabase error:', error)
       return NextResponse.json(
         { error: 'Errore durante il recupero degli utenti' },
         { status: 500 }
@@ -70,7 +69,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users })
   } catch (error) {
-    console.error('[admin/users] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero degli utenti' },
       { status: 500 }

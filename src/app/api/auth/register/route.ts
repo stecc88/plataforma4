@@ -133,7 +133,6 @@ export async function POST(request: NextRequest) {
             } as unknown as import('@/lib/db').Enrollment,
           })
         } catch (enrollmentError) {
-          console.error('[auth/register] Enrollment creation failed:', enrollmentError)
           // Don't fail registration if enrollment fails
         }
       }
@@ -155,7 +154,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('[auth/register] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante la registrazione' },
       { status: 500 }

@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('[preparations/generate] Error:', error)
 
     // Provide specific error message for timeout
     if (error instanceof AITimeoutError) {

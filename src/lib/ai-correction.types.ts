@@ -110,7 +110,7 @@ export interface AICorrection {
   selfAssessment?: {
     selfScore: number
     selfNotes: string
-    submittedAt: string
+    assessedAt: string
   }
 }
 

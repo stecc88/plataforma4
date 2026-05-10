@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
       user: sanitizeUser(user),
     })
   } catch (error) {
-    console.error('[auth/me] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante il recupero del profilo' },
       { status: 500 }

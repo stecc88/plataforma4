@@ -79,7 +79,6 @@ export async function POST(
 
     return NextResponse.json({ essay: updatedEssay })
   } catch (error) {
-    console.error('[essays/[id]/self-assess] Error:', error)
     return NextResponse.json(
       { error: 'Errore durante l\'autovalutazione' },
       { status: 500 }

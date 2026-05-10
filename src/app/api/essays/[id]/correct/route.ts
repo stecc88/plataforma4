@@ -81,7 +81,6 @@ export async function POST(
 
     // Verify we got a valid correction (safety net)
     if (!correction || typeof correction.score !== 'number') {
-      console.error('[essays/[id]/correct] Invalid AI response structure')
       return NextResponse.json(
         { error: 'Errore nella correzione AI. Riprova.' },
         { status: 500 }
@@ -106,7 +105,6 @@ export async function POST(
       correction,
     })
   } catch (error) {
-    console.error('[essays/[id]/correct] Error:', error)
 
     // Provide specific error message for timeout
     if (error instanceof AITimeoutError) {
