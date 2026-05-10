@@ -219,7 +219,7 @@ async function callGeminiREST(systemPrompt: string, userPrompt: string): Promise
 
 /* ─── Z-AI SDK Fallback (works locally through proxy) ────────── */
 
-let zaiInstance: InstanceType<typeof import('z-ai-web-dev-sdk').default> | null = null
+let zaiInstance: ReturnType<typeof import('z-ai-web-dev-sdk').default.prototype.constructor.create> | null = null
 
 async function callZAI(systemPrompt: string, userPrompt: string): Promise<string> {
   // This fallback only works locally where .z-ai-config exists.
