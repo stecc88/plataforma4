@@ -1,21 +1,9 @@
-import ZAI from 'z-ai-web-dev-sdk'
 import type {
   AICorrection,
   CertificationType,
   ItalianLevel,
   TextType,
 } from './ai-correction.types'
-
-/* ─── Singleton ZAI Instance ─────────────────────────────────── */
-
-let zaiInstance: InstanceType<typeof ZAI> | null = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
-  }
-  return zaiInstance
-}
 
 /* ─── Custom Error Classes ───────────────────────────────────── */
 
@@ -31,28 +19,6 @@ export class AIResponseError extends Error {
     super(message)
     this.name = 'AIResponseError'
   }
-}
-
-/* ─── Timeout Helper ─────────────────────────────────────────── */
-
-const AI_TIMEOUT_MS = 120_000 // 2 minutes for complex correction
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number = AI_TIMEOUT_MS): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new AITimeoutError(timeoutMs))
-    }, timeoutMs)
-
-    promise
-      .then((result) => {
-        clearTimeout(timer)
-        resolve(result)
-      })
-      .catch((error) => {
-        clearTimeout(timer)
-        reject(error)
-      })
-  })
 }
 
 /* ─── Re-export types for backward compatibility ─────────────── */
@@ -81,6 +47,28 @@ export interface LessonPreparation {
   notes: string[]
 }
 
+/* ─── Timeout Helper ─────────────────────────────────────────── */
+
+const AI_TIMEOUT_MS = 120_000 // 2 minutes for complex correction
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number = AI_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new AITimeoutError(timeoutMs))
+    }, timeoutMs)
+
+    promise
+      .then((result) => {
+        clearTimeout(timer)
+        resolve(result)
+      })
+      .catch((error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
+
 /* ─── JSON Extraction Helper ─────────────────────────────────── */
 
 function extractJSON(content: string): string {
@@ -105,6 +93,167 @@ function extractJSON(content: string): string {
   }
 
   return jsonStr
+}
+
+/* ─── Gemini REST API (Primary — works on Vercel) ───────────── */
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
+
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>
+      role?: string
+    }
+    finishReason?: string
+  }>
+  error?: {
+    code?: number
+    message?: string
+    status?: string
+  }
+}
+
+/**
+ * Call the Gemini REST API directly via fetch().
+ * This works in ALL environments — Vercel, local dev, Docker, etc.
+ * No SDK dependency, no config file needed.
+ * Just needs GEMINI_API_KEY environment variable.
+ */
+async function callGeminiREST(systemPrompt: string, userPrompt: string): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new AIResponseError('GEMINI_API_KEY non configurata. Imposta la variabile d\'ambiente.')
+  }
+
+  const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
+
+  const body = {
+    system_instruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 16384,
+      responseMimeType: 'application/json',
+    },
+  }
+
+  console.log('[AI] Calling Gemini REST API, model:', GEMINI_MODEL)
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    console.error('[AI] Gemini API error:', response.status, errorText.substring(0, 500))
+
+    try {
+      const errorJson = JSON.parse(errorText)
+      const errorMessage = errorJson?.error?.message || errorText
+      throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorMessage}`)
+    } catch (e) {
+      if (e instanceof AIResponseError) throw e
+      if (errorText.includes('User location is not supported')) {
+        throw new AIResponseError('API Gemini non disponibile in questa posizione.')
+      }
+      throw new AIResponseError(`Errore API Gemini (${response.status}): ${errorText.substring(0, 200)}`)
+    }
+  }
+
+  const data: GeminiResponse = await response.json()
+
+  if (data.error) {
+    console.error('[AI] Gemini API returned error:', data.error)
+    throw new AIResponseError(`Errore Gemini: ${data.error.message || 'Errore sconosciuto'}`)
+  }
+
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!content) {
+    console.error('[AI] No content in Gemini response:', JSON.stringify(data).substring(0, 500))
+    throw new AIResponseError('Nessuna risposta dal modello AI')
+  }
+
+  return content
+}
+
+/* ─── Z-AI SDK Fallback (works locally through proxy) ────────── */
+
+let zaiInstance: InstanceType<typeof import('z-ai-web-dev-sdk').default> | null = null
+
+async function callZAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  // Dynamic import to avoid build errors if config file doesn't exist
+  const ZAI = (await import('z-ai-web-dev-sdk')).default
+
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create()
+  }
+
+  const completion = await zaiInstance.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+
+  const content = completion.choices?.[0]?.message?.content
+  if (!content) {
+    throw new AIResponseError('Nessuna risposta dal modello AI (Z-AI fallback)')
+  }
+
+  return content
+}
+
+/* ─── Unified AI Call with Fallback ──────────────────────────── */
+
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  // Strategy: Try Gemini REST API first (works on Vercel production).
+  // If that fails (geo-restriction, quota, etc.), try Z-AI SDK fallback (works locally through proxy).
+  const errors: string[] = []
+
+  // 1. Try Gemini REST API
+  if (GEMINI_API_KEY) {
+    try {
+      const content = await callGeminiREST(systemPrompt, userPrompt)
+      console.log('[AI] Successfully used Gemini REST API')
+      return content
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.warn('[AI] Gemini REST API failed:', msg.substring(0, 200))
+      errors.push(`Gemini: ${msg.substring(0, 100)}`)
+    }
+  } else {
+    errors.push('Gemini: GEMINI_API_KEY not set')
+  }
+
+  // 2. Try Z-AI SDK fallback (works locally through proxy)
+  try {
+    const content = await callZAI(systemPrompt, userPrompt)
+    console.log('[AI] Successfully used Z-AI SDK fallback')
+    return content
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.warn('[AI] Z-AI SDK fallback failed:', msg.substring(0, 200))
+    errors.push(`Z-AI: ${msg.substring(0, 100)}`)
+  }
+
+  // 3. All methods failed
+  throw new AIResponseError(
+    `Impossibile contattare il servizio AI. Errori: ${errors.join(' | ')}`
+  )
 }
 
 /* ─── PLIDA/CILS System Prompt ───────────────────────────────── */
@@ -319,6 +468,88 @@ C1: massima attenzione a registro, nominalizzazioni,
 C2: correzione stilistica completa. Segnala scelte subottimali
     di registro, ridondanze, calchi dalla L1.`
 
+/* ─── Parse Correction from AI response ──────────────────────── */
+
+function parseCorrectionResponse(
+  content: string,
+  certification: CertificationType,
+  level: ItalianLevel
+): AICorrection {
+  // Extract and parse JSON
+  const jsonStr = extractJSON(content)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonStr)
+  } catch (parseError) {
+    console.error('[AI] JSON parse failed. Raw content (first 300):', content.substring(0, 300))
+    console.error('[AI] Extracted JSON (first 300):', jsonStr.substring(0, 300))
+    console.error('[AI] Parse error:', parseError)
+    throw new AIResponseError('Risposta AI non è un JSON valido')
+  }
+
+  const p = parsed as Record<string, unknown>
+
+  // Validate essential fields
+  if (typeof p.score !== 'number' || !p.correctedText) {
+    console.error('[AI] Invalid structure. score:', typeof p.score, 'correctedText:', !!p.correctedText)
+    throw new AIResponseError('Struttura della risposta AI non valida')
+  }
+
+  // Build the AICorrection with safe defaults
+  const correction: AICorrection = {
+    markedText: String(p.markedText || ''),
+    correctedText: String(p.correctedText),
+    score: Math.max(0, Math.min(100, p.score as number)),
+    certification: (p.certification as CertificationType) || certification,
+    level: String(p.level || level),
+    scoreBreakdown: {
+      communicativeAdequacy:
+        typeof (p.scoreBreakdown as Record<string, unknown>)?.communicativeAdequacy === 'number'
+          ? (p.scoreBreakdown as Record<string, unknown>).communicativeAdequacy as number
+          : 0,
+      grammaticalAccuracy:
+        typeof (p.scoreBreakdown as Record<string, unknown>)?.grammaticalAccuracy === 'number'
+          ? (p.scoreBreakdown as Record<string, unknown>).grammaticalAccuracy as number
+          : 0,
+      lexicalRichness:
+        typeof (p.scoreBreakdown as Record<string, unknown>)?.lexicalRichness === 'number'
+          ? (p.scoreBreakdown as Record<string, unknown>).lexicalRichness as number
+          : 0,
+      textualCohesion:
+        typeof (p.scoreBreakdown as Record<string, unknown>)?.textualCohesion === 'number'
+          ? (p.scoreBreakdown as Record<string, unknown>).textualCohesion as number
+          : 0,
+    },
+    errors: Array.isArray(p.errors) ? (p.errors as AICorrection['errors']) : [],
+    strengths: Array.isArray(p.strengths) ? (p.strengths as AICorrection['strengths']) : [],
+    suggestions: {
+      connectors: {
+        used:
+          Array.isArray((p.suggestions as Record<string, unknown>)?.connectors)
+            ? ((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>)
+                ?.used && Array.isArray(((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).used)
+              ? (((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).used as string[])
+              : []
+            : [],
+        recommended:
+          Array.isArray((p.suggestions as Record<string, unknown>)?.connectors)
+            ? ((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>)
+                ?.recommended && Array.isArray(((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).recommended)
+              ? (((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).recommended as string[])
+              : []
+            : [],
+      },
+      synonyms: Array.isArray((p.suggestions as Record<string, unknown>)?.synonyms)
+        ? ((p.suggestions as Record<string, unknown>).synonyms as AICorrection['suggestions']['synonyms'])
+        : [],
+    },
+    studyTopics: Array.isArray(p.studyTopics) ? (p.studyTopics as string[]) : [],
+    finalNote: String(p.finalNote || ''),
+  }
+
+  return correction
+}
+
 /* ─── correctWriting ─────────────────────────────────────────── */
 
 export interface CorrectWritingOptions {
@@ -334,8 +565,6 @@ export async function correctWriting(
   const { text, level, certification, textType } = options
 
   try {
-    const zai = await getZAI()
-
     const userPrompt = `Livello QCER: ${level}
 Certificazione: ${certification}
 Tipo di testo: ${textType}
@@ -346,103 +575,20 @@ ${text}`
 
     console.log('[AI] Sending correction request for level:', level, 'certification:', certification)
 
-    const completion = await withTimeout(
-      zai.chat.completions.create({
-        messages: [
-          { role: 'assistant', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        thinking: { type: 'disabled' },
-      }),
+    const content = await withTimeout(
+      callAI(SYSTEM_PROMPT, userPrompt),
       AI_TIMEOUT_MS
     )
 
-    const content = completion.choices?.[0]?.message?.content
-    if (!content) {
-      console.error('[AI] No content in response:', JSON.stringify(completion).substring(0, 500))
-      throw new AIResponseError('Nessuna risposta dal modello AI')
-    }
-
     console.log('[AI] Got response, length:', content.length, 'first 100 chars:', content.substring(0, 100))
 
-    // Extract and parse JSON
-    const jsonStr = extractJSON(content)
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(jsonStr)
-    } catch (parseError) {
-      console.error('[AI] JSON parse failed. Raw content (first 300):', content.substring(0, 300))
-      console.error('[AI] Extracted JSON (first 300):', jsonStr.substring(0, 300))
-      console.error('[AI] Parse error:', parseError)
-      throw new AIResponseError('Risposta AI non è un JSON valido')
-    }
-
-    const p = parsed as Record<string, unknown>
-
-    // Validate essential fields
-    if (typeof p.score !== 'number' || !p.correctedText) {
-      console.error('[AI] Invalid structure. score:', typeof p.score, 'correctedText:', !!p.correctedText)
-      throw new AIResponseError('Struttura della risposta AI non valida')
-    }
-
-    // Build the AICorrection with safe defaults
-    const correction: AICorrection = {
-      markedText: String(p.markedText || ''),
-      correctedText: String(p.correctedText),
-      score: Math.max(0, Math.min(100, p.score as number)),
-      certification: (p.certification as CertificationType) || certification,
-      level: String(p.level || level),
-      scoreBreakdown: {
-        communicativeAdequacy:
-          typeof (p.scoreBreakdown as Record<string, unknown>)?.communicativeAdequacy === 'number'
-            ? (p.scoreBreakdown as Record<string, unknown>).communicativeAdequacy as number
-            : 0,
-        grammaticalAccuracy:
-          typeof (p.scoreBreakdown as Record<string, unknown>)?.grammaticalAccuracy === 'number'
-            ? (p.scoreBreakdown as Record<string, unknown>).grammaticalAccuracy as number
-            : 0,
-        lexicalRichness:
-          typeof (p.scoreBreakdown as Record<string, unknown>)?.lexicalRichness === 'number'
-            ? (p.scoreBreakdown as Record<string, unknown>).lexicalRichness as number
-            : 0,
-        textualCohesion:
-          typeof (p.scoreBreakdown as Record<string, unknown>)?.textualCohesion === 'number'
-            ? (p.scoreBreakdown as Record<string, unknown>).textualCohesion as number
-            : 0,
-      },
-      errors: Array.isArray(p.errors) ? (p.errors as AICorrection['errors']) : [],
-      strengths: Array.isArray(p.strengths) ? (p.strengths as AICorrection['strengths']) : [],
-      suggestions: {
-        connectors: {
-          used:
-            Array.isArray((p.suggestions as Record<string, unknown>)?.connectors)
-              ? ((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>)
-                  ?.used && Array.isArray(((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).used)
-                ? (((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).used as string[])
-                : []
-              : [],
-          recommended:
-            Array.isArray((p.suggestions as Record<string, unknown>)?.connectors)
-              ? ((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>)
-                  ?.recommended && Array.isArray(((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).recommended)
-                ? (((p.suggestions as Record<string, unknown>).connectors as Record<string, unknown>).recommended as string[])
-                : []
-              : [],
-        },
-        synonyms: Array.isArray((p.suggestions as Record<string, unknown>)?.synonyms)
-          ? ((p.suggestions as Record<string, unknown>).synonyms as AICorrection['suggestions']['synonyms'])
-          : [],
-      },
-      studyTopics: Array.isArray(p.studyTopics) ? (p.studyTopics as string[]) : [],
-      finalNote: String(p.finalNote || ''),
-    }
+    const correction = parseCorrectionResponse(content, certification, level)
 
     console.log('[AI] Correction complete. Score:', correction.score, 'Errors:', correction.errors.length)
 
     return correction
   } catch (error) {
     console.error('[AI] Correction error:', error instanceof Error ? error.message : error)
-    // Re-throw with a safe message — the API route will handle the response
     if (error instanceof AITimeoutError) {
       throw error
     }
@@ -450,7 +596,6 @@ ${text}`
       throw error
     }
 
-    // Wrap unexpected errors
     throw new AIResponseError('Errore nella correzione automatica. Riprova più tardi.')
   }
 }
@@ -462,8 +607,6 @@ export async function generateLessonPreparation(
   level: ItalianLevel = 'B1'
 ): Promise<LessonPreparation> {
   try {
-    const zai = await getZAI()
-
     const systemPrompt = `Sei un docente esperto di lingua italiana. Genera una preparazione di lezione personalizzata per uno studente di livello ${level} che ha le seguenti debolezze: ${weaknesses.join(', ')}.
 Restituisci UNICAMENTE un oggetto JSON valido con la seguente struttura:
 {
@@ -491,21 +634,10 @@ Restituisci UNICAMENTE un oggetto JSON valido con la seguente struttura:
 }
 Rispondi SOLO con il JSON, nessun altro testo.`
 
-    const completion = await withTimeout(
-      zai.chat.completions.create({
-        messages: [
-          { role: 'assistant', content: systemPrompt },
-          { role: 'user', content: `Genera una lezione per lavorare su: ${weaknesses.join(', ')}` },
-        ],
-        thinking: { type: 'disabled' },
-      }),
+    const content = await withTimeout(
+      callAI(systemPrompt, `Genera una lezione per lavorare su: ${weaknesses.join(', ')}`),
       AI_TIMEOUT_MS
     )
-
-    const content = completion.choices?.[0]?.message?.content
-    if (!content) {
-      throw new AIResponseError('Nessuna risposta dal modello AI')
-    }
 
     // Extract and parse JSON
     const jsonStr = extractJSON(content)
@@ -528,7 +660,6 @@ Rispondi SOLO con il JSON, nessun altro testo.`
       notes: Array.isArray(p.notes) ? (p.notes as string[]) : [],
     }
   } catch (error) {
-    // Re-throw — the API route will handle the response
     if (error instanceof AITimeoutError) {
       throw error
     }
