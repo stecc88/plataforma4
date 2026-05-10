@@ -38,13 +38,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# database
-*.db
+# database (SQLite local files only)
 *.db-journal
-db/
-
-# prisma
-prisma/
 
 # logs
 dev.log
@@ -56,3 +51,9 @@ server.log
 
 # mini-services
 mini-services/*/node_modules
+
+# downloads
+*.zip
+
+# worklog
+worklog.md

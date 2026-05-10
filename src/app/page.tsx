@@ -96,7 +96,7 @@ export default function Home() {
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md"
+              className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl"
             >
               <AuthForm
                 initialTab={authTab}
