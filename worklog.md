@@ -563,3 +563,39 @@ Stage Summary:
 - StatsCharts component with score distribution, status breakdown, recent essays
 - Italian UI, emerald/teal/amber/orange colors, NO indigo/blue
 - Responsive, Framer Motion animations, proper accessibility (DialogDescription in all dialogs)
+
+---
+Task ID: 8
+Agent: main
+Task: PROMPT 8 — Teacher/Admin dashboards with recharts, note CRUD, and progress indicators
+
+Work Log:
+- Rewrote src/components/scribia/stats-charts.tsx to use recharts via shadcn/ui ChartContainer:
+  * ScoreProgressChart: LineChart with monthly score averages, emerald line (#10b981), monotone curve, dots, X/Y axes (0-100)
+  * CategoryScoresChart: BarChart with vertical bars per error category, dynamic colors, rounded tops
+  * ErrorDistributionChart: PieChart donut style (innerRadius=50, outerRadius=90), 6 color-coded error types with Italian labels, legend
+  * StatsCharts main component: derives data from essays via useMemo, responsive grid layout (line full-width on lg), quick stats grid, recent essays list
+  * Uses ChartContainer, ChartTooltip/ChartTooltipContent, ChartLegend/ChartLegendContent from shadcn/ui
+- Created PUT/DELETE /api/notes/[id]/route.ts:
+  * PUT: update note content, teacher can only edit own notes, admin can edit any
+  * DELETE: delete note, same permission rules, returns { success: true }
+  * Full auth checks (JWT, role verification), validation, Italian error messages
+- Enhanced teacher-notes.tsx with edit/delete functionality:
+  * NoteItem component with hover action buttons (Pencil + Trash2 icons)
+  * Edit dialog with Textarea, pre-filled content, loading state, toast notifications
+  * Delete with AlertDialog confirmation (red accent), loading state
+  * Better filter UX with X icon on "Rimuovi filtro" badge
+- Enhanced teacher-dashboard.tsx student rows:
+  * Added correctedCount and lastEssayDate to student data computation
+  * Mini progress bar showing corrected/total essay ratio (animated, color-coded)
+  * Last essay date display instead of just enrollment date
+  * "Nessun saggio" for students with no essays
+- All components verified working: lint passes, dev server compiles correctly
+- Git committed: feat: add teacher/admin dashboards with recharts, note CRUD, and progress indicators
+
+Stage Summary:
+- stats-charts.tsx rewritten with recharts (LineChart, BarChart, PieChart) via shadcn/ui ChartContainer
+- Note CRUD complete: create (existing), edit (new PUT API + dialog), delete (new DELETE API + AlertDialog)
+- Teacher dashboard enhanced with progress bars and last essay date per student
+- All admin APIs verified: GET /api/admin/users, POST /api/admin/approve-teacher, POST /api/admin/suspend-user
+- All components: teacher-dashboard, student-detail, teacher-notes, class-preparations, admin-dashboard, stats-charts verified
