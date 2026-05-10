@@ -225,3 +225,45 @@ Stage Summary:
 - 3 role-specific dashboards with stats cards
 - AuthForm with login/register modes and role selection
 - Inter font and Sonner Toaster in layout
+
+---
+Task ID: 6
+Agent: main
+Task: Extract landing page and create tabbed auth form
+
+Work Log:
+- Created src/components/landing-page.tsx — Standalone landing page component:
+  - Hero: ScribIA gradient title + subtitle "Il tuo assistente per la scrittura in italiano"
+  - 6 features with Lucide icons: PenLine, BookOpen, Brain, GraduationCap, Languages, Lightbulb
+  - CTA button "Inizia ora" (emerald/teal accent)
+  - Benefits section: side-by-side cards for Students (4 benefits) and Teachers (4 benefits)
+  - How it works (3 steps with Brain icon)
+  - Pricing (3 plans)
+  - Sticky footer with min-h-screen flex flex-col
+  - Framer Motion animations (fade in, slide up, stagger)
+  - Responsive mobile-first, white bg, emerald/teal accents (NO indigo/blue)
+  - onOpenAuth callback prop for triggering auth modal
+- Created src/components/scribia/auth-form.tsx — Enhanced auth form with Tabs:
+  - shadcn/ui Tabs: Login / Registrati
+  - Login: email, password with inline validation
+  - Register: name, email, password, confirm password, role Select (Studente/Docente)
+  - Studente: optional "Codice Docente" input with KeyRound icon
+  - Docente: amber warning "Richiede approvazione dell'amministratore"
+  - Form validation with inline error messages (red border + AlertCircle icon)
+  - Loading states (Loader2 spinner) on submit buttons
+  - Toast notifications (sonner) on success/error
+  - Student → direct dashboard; Teacher → pending approval info toast
+  - onSuccess callback for closing auth modal
+- Updated src/app/page.tsx — Simplified to use new components:
+  - LandingPage component with onOpenAuth callback
+  - AuthForm with Tabs in AnimatePresence modal overlay
+  - Clean separation of concerns
+- Lint passes with zero errors
+- Committed: feat: extract landing page and create tabbed auth form
+
+Stage Summary:
+- Landing page and auth form extracted into dedicated components
+- Tabbed auth with Login/Registrati, role-based fields
+- Student: teacher code input; Teacher: approval warning
+- Full validation, loading states, toast notifications
+- Clean component architecture in page.tsx
