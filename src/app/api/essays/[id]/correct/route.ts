@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { isSupabaseConfigured } from '@/lib/supabase'
 import { getAuthFromRequest, ROLES } from '@/lib/auth'
-import { correctWriting, AITimeoutError } from '@/lib/ai'
+import { correctWriting, AITimeoutError, AIResponseError } from '@/lib/ai'
 import type { ItalianLevel, CertificationType, TextType } from '@/lib/ai-correction.types'
 
 /* ─── POST /api/essays/[id]/correct — AI Correction ──────────── */
@@ -16,14 +15,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // ─── Supabase configuration check ──────────────────────
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json(
-        { error: 'Supabase non configurato. Configura le variabili d\'ambiente.' },
-        { status: 503 }
-      )
-    }
-
     const auth = await getAuthFromRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Non autenticato' }, { status: 401 })
@@ -114,8 +105,7 @@ export async function POST(
       correction,
     })
   } catch (error) {
-
-    // Provide specific error message for timeout
+    // Provide specific error messages
     if (error instanceof AITimeoutError) {
       return NextResponse.json(
         { error: 'La correzione AI ha impiegato troppo tempo. Riprova.' },
@@ -123,8 +113,22 @@ export async function POST(
       )
     }
 
+    if (error instanceof AIResponseError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 502 }
+      )
+    }
+
+    // Return detailed error for debugging (remove in production)
+    const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto'
+    const errorDetails = error instanceof Error && error.cause ? String(error.cause) : ''
+
     return NextResponse.json(
-      { error: 'Errore nella correzione AI. Riprova.' },
+      {
+        error: `Errore nella correzione AI: ${errorMsg}`,
+        details: errorDetails || undefined,
+      },
       { status: 500 }
     )
   }

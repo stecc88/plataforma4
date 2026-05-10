@@ -205,8 +205,9 @@ export function EssayEditor() {
         setCurrentEssay(correctData.essay)
         setCurrentView('essay-detail')
       } catch (correctionError) {
-        // AI correction failed — still save as draft
-        toast.error("Errore nella correzione. Riprova.")
+        // AI correction failed — show the actual error message
+        const errMsg = correctionError instanceof Error ? correctionError.message : 'Errore nella correzione. Riprova.'
+        toast.error(errMsg, { duration: 6000 })
         setCurrentEssay(createdEssay)
         setCurrentView('dashboard')
       }
