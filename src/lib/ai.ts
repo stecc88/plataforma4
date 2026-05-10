@@ -257,27 +257,33 @@ Il campo "examples" deve contenere le parole/frasi esatte del testo
 che dimostrano il punto di forza. Es. ["tuttavia", "di conseguenza"].
 
 ── suggestions.connectors ──
-  - used: tutti i connettivi già presenti nel testo
-    (es. ["e", "ma", "perché", "quindi"])
-  - recommended: 5–8 connettivi appropriati al livello e al tipo di
-    testo che lo studente NON ha usato e potrebbe integrare.
-    Per A1/A2: connettivi semplici (poi, anche, però, allora).
+  - used: OBBLIGATORIO. Elenca TUTTI i connettivi e le congiunzioni
+    presenti nel testo, anche i più semplici (e, ma, però, perché,
+    che, se, quando, mentre, quindi, poi, anche, ancora, ecc.).
+    Cerca attentamente nel testo: ogni congiunzione conta.
+    Es. ["e", "ma", "che", "perché", "quindi"]
+  - recommended: OBBLIGATORIO. 5–8 connettivi appropriati al livello
+    e al tipo di testo che lo studente NON ha usato e potrebbe integrare.
+    Per A1/A2: connettivi semplici (poi, anche, però, allora, infatti,
+    perciò, prima, dopo).
     Per B1/B2: connettivi intermedi (tuttavia, inoltre, nonostante,
-    di conseguenza, eppure, sebbene, affinché).
+    di conseguenza, eppure, sebbene, affinché, dato che, benché).
     Per C1/C2: connettivi avanzati (ciononostante, a tal proposito,
-    in virtù di, laddove, giacché, al contempo).
+    in virtù di, laddove, giacché, al contempo, peraltro, nondimeno).
+    NON includere connettivi già presenti in "used".
 
 ── suggestions.synonyms ──
 Analizza il testo e identifica le parole PIENE (non articoli,
-preposizioni o ausiliari) che si ripetono 3 o più volte.
+preposizioni o ausiliari) che si ripetono 2 o più volte.
 Per ognuna:
   - word: la parola ripetuta (forma base / lemma)
-  - count: numero di occorrenze nel testo
-  - alternatives: 4–6 sinonimi appropriati al livello e al registro.
+  - count: numero esatto di occorrenze nel testo (conta attentamente!)
+  - alternatives: 4–6 sinonimi ITALIANI appropriati al livello e al registro.
+    IMPORTANTE: i sinonimi devono essere parole ITALIANE, non straniere.
     Per A1/A2: sinonimi semplici e comuni.
     Per C1/C2: sinonimi stilisticamente elevati.
 Ordina per frequenza decrescente (la più ripetuta prima).
-Se nessuna parola si ripete ≥3 volte, restituisci array vuoto [].
+Se nessuna parola si ripete ≥2 volte, restituisci array vuoto [].
 
 ── studyTopics ──
 Array di 2–4 argomenti grammaticali o testuali prioritari da rivedere.
