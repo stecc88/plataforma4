@@ -174,3 +174,54 @@ Stage Summary:
 - Role-based access control on all endpoints
 - Supabase used directly for complex queries (IN, joins, aggregations)
 - All error handling robust with console.error for debugging
+
+---
+Task ID: 5
+Agent: main
+Task: Create global store, AppShell, and auth-aware page
+
+Work Log:
+- Created src/store/app-store.ts — Zustand store with:
+  - Full state: user, token, currentView, currentEssay, students, essays, stats, notes, preparations, isLoading
+  - Token persistence in localStorage (TOKEN_KEY = 'scribia_token')
+  - Auto-fetch data on login (role-based: student→essays+stats, teacher→essays+students+stats+notes+preparations, admin→essays+students+stats+notes)
+  - hydrateAuth(token) for session restore from localStorage
+  - All fetch actions with try/catch error handling
+  - Types: AppUser, AppView, EssayItem, StudentItem, NoteItem, PreparationItem, StatsData
+- Created src/components/scribia/api-fetch.ts — API helper:
+  - apiFetch() adds Authorization header automatically from store
+  - 401 → auto-logout via useAppStore.getState().logout()
+  - apiFetchPublic() for login/register (no auth header)
+  - Centralized error handling with JSON parsing
+- Created src/components/scribia/app-shell.tsx — Main application shell:
+  - Desktop Sidebar with role-based navigation and user info
+  - Mobile Sidebar (Sheet) for responsive design
+  - Header with theme toggle and logout
+  - Content area rendering views based on currentView:
+    - Student: dashboard (stats cards, recent essays), essay-editor, essay-detail, profile
+    - Teacher: dashboard (stats, student list), student-detail, notes, class-preparations
+    - Admin: dashboard (global stats), users, pending-teachers
+  - All views with proper empty states and Italian labels
+  - ThemeToggle with Framer Motion animations
+- Updated src/app/page.tsx — Main page:
+  - Not authenticated: LandingPage with AuthForm overlay
+  - Authenticated: AppShell
+  - AuthInitializer for session hydration from localStorage token
+  - AuthForm with login/register toggle, role selection, teacher code input
+  - Landing page with same design (hero, features, how it works, pricing, footer)
+  - All CTA buttons now open auth modal
+- Updated src/app/layout.tsx:
+  - Inter font (replacing Geist)
+  - ThemeProvider (next-themes) with attribute="class"
+  - Sonner Toaster (richColors, position="top-right")
+- Updated src/app/globals.css: font-sans → --font-inter
+- Lint passes with zero errors
+- Committed: feat: add global store, AppShell, and auth-aware page
+
+Stage Summary:
+- Complete auth flow: landing → register/login → AppShell with role-based views
+- Zustand store with localStorage token persistence and auto-fetch
+- Responsive AppShell with sidebar (desktop) and sheet (mobile)
+- 3 role-specific dashboards with stats cards
+- AuthForm with login/register modes and role selection
+- Inter font and Sonner Toaster in layout
